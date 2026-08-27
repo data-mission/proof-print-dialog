@@ -1,0 +1,33 @@
+# PROOF
+
+> PROOF is the print dialog, reinvented: it paginates a document for real (block-level layout, not a guess), measures ink coverage from actual glyph-run geometry (`Range.getClientRects()`, not rasterisation), flags waste pages against a stated classifier, and exposes the same measurement to AI agents over MCP. Bundled demo: 15 pages, 5 flagged (pages 4, 6, 9, 11, 13), 10 print, 2.0% waste threshold, 2.9% mean ink. Built single-file, no backend, no build step.
+
+## Application
+
+- [proof/index.html](proof/index.html): The product itself. Four views — Sheet wall, Ink X-ray, Agent (MCP), Since 1995. Open directly in a browser; no build step, no dependencies.
+- [proof/deck.html](proof/deck.html): Seven-slide product presentation in the app's own visual language.
+- [proof/docs.html](proof/docs.html): Full feature-by-feature reference, verified against live output. Has a Copy-as-Markdown / Download .md control for agent consumption.
+- [proof/process.html](proof/process.html): The adversarial selection process behind the idea — three AI panels, ~72 candidates generated, ~63 killed, 29 logged decisions.
+
+## Machine-readable documentation
+
+- [docs/functionality.md](docs/functionality.md): Static Markdown mirror of docs.html — every measurement mechanism, the waste classifier, the flagged-pages table, the MCP tool surface, and verification results. Byte-identical to what docs.html's Copy-as-Markdown button produces.
+- [docs/process.md](docs/process.md): Static Markdown mirror of process.html — the full selection record, prediction tables, and decision log.
+- [docs/pitch.md](docs/pitch.md): Static Markdown mirror of deck.html — the seven-slide pitch as plain text.
+
+## MCP server
+
+- [proof/mcp/README.md](proof/mcp/README.md): Install and connect instructions (stdio transport) for Claude Desktop, Claude Code, and Cursor.
+- [proof/mcp/server.js](proof/mcp/server.js): Server entrypoint exposing four tools — `proof`, `waste_report`, `drop_pages`, `ink_cost`.
+- [proof/mcp/document.js](proof/mcp/document.js): The document model the tools operate on, mirroring index.html's measured 15-page sample document.
+- [proof/mcp/smoke_test.mjs](proof/mcp/smoke_test.mjs): End-to-end check — spawns the server over stdio and calls all four tools.
+
+## Verification harnesses
+
+- [_brainstorming/verify.mjs](_brainstorming/verify.mjs): Drives proof/index.html in a real headless browser and asserts 20 claims about pagination, measurement, and the classifier.
+- [_brainstorming/verify-print.mjs](_brainstorming/verify-print.mjs): Renders the app to an actual PDF and counts real pages in the output (4 assertions) — proves the reduced job has fewer pages, not just fewer DOM nodes.
+- [_brainstorming/verify-consistency.mjs](_brainstorming/verify-consistency.mjs): Treats the live app as the single source of truth and checks every other shipped artifact (deck, docs, process page, MCP server, README) for drifted figures.
+
+## Repository
+
+- [README.md](README.md): Project overview, design rationale, and how to run PROOF locally.

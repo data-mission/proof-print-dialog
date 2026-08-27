@@ -157,7 +157,7 @@ section{padding:clamp(40px,6.5vh,72px) 0;border-top:1.5px dashed var(--ink-3)}
 
 /* ── mcp tools table ──────────────────────────────────────────── */
 .tooltable{display:grid;gap:10px;margin-top:16px}
-.trow{display:grid;grid-template-columns:150px 1fr;gap:12px;background:var(--paper);
+.trow{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:12px;background:var(--paper);
   border:2px solid var(--ink);border-radius:10px;padding:12px 14px;align-items:start}
 .trow code{background:none;border:0;padding:0;font-weight:800;color:var(--blue)}
 .trow p{font-size:.83rem;color:var(--ink-2)}
@@ -216,6 +216,20 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .chipbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
 .chipbtn.go{background:var(--blue);color:#fff}
 .chipbtn.ghost{box-shadow:none;border-color:var(--ink-3);color:var(--ink-2)}
+
+/* Narrow-viewport containment: wide children (code blocks, the flagged
+   table) must scroll inside their own box — the page body must never
+   scroll sideways. A clipped edge reads as unfinished in a still. */
+@media(max-width:640px){
+  .ftable{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* A flex/grid child defaults to min-width:auto, which lets it grow to
+     its content and defeats overflow-x on the box itself. Force it to
+     zero so the code block actually scrolls inside its own frame. */
+  pre, .ftable{max-width:100%;min-width:0}
+  main, section, article, div{min-width:0}
+  .trow{grid-template-columns:1fr;gap:5px}
+  pre{font-size:.7rem;padding:12px 13px}
+}
 </style>
 </head>
 <body>
