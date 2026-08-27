@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PROOF — the process behind it</title>
+<meta name="description" content="Three AI panels generated ~72 candidates and killed ~63 of them. Here is the test that decided everything, the gate that killed five ideas for faking data, the trap ~20 of our best competitors will fall into, and the receipts.">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   PROOF — process page. Same product, same tokens, different job:
+   this page proves the SELECTION was adversarial, not that the app
+   is good. Every number on it traces to _brainstorming/SPEC.md or
+   findings-panels.md. Nothing here is invented — that would be a
+   funny way to fail the page's own thesis.
+   Single file · no dependencies · no webfonts · no backend.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#FFFFFF;
+  --tint:#F1F0FB;
+  --tint-2:#E6E4F5;
+  --ink:#141126;
+  --ink-2:#4A4568;
+  --ink-3:#8F8AA6;
+
+  --blue:#2B3BFF;
+  --pink:#FF4D9E;
+  --yellow:#FFD21C;
+  --green:#00B37E;
+
+  --stroke:3px;
+  --sh:5px 5px 0 var(--ink);
+  --sh-sm:3px 3px 0 var(--ink);
+  --r:14px;
+
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Hiragino Maru Gothic ProN",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --e:cubic-bezier(.2,.9,.25,1.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:clip}
+body{background:var(--tint);color:var(--ink);font-family:var(--sans);line-height:1.5;
+  -webkit-font-smoothing:antialiased;font-synthesis-weight:none}
+::selection{background:var(--yellow)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.wrap{width:min(100% - 40px,1180px);margin-inline:auto}
+
+/* ── type ─────────────────────────────────────────────────────── */
+.eyebrow{font:700 .68rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(2.6rem,7.4vw,5.6rem);font-weight:800;letter-spacing:-.04em;line-height:.98}
+h2{font-size:clamp(1.7rem,4.4vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05}
+h3{font-size:clamp(1.05rem,1.7vw,1.3rem);font-weight:750;letter-spacing:-.015em}
+.lede{font-size:clamp(1rem,1.5vw,1.22rem);color:var(--ink-2);max-width:62ch;font-weight:600}
+p.body{font-size:.98rem;color:var(--ink-2);max-width:62ch;font-weight:550;line-height:1.55}
+.hi{background:linear-gradient(transparent 58%,color-mix(in oklab,var(--yellow) 78%,transparent) 0);padding:0 3px}
+.hi.pink{background:linear-gradient(transparent 58%,color-mix(in oklab,var(--pink) 34%,transparent) 0)}
+.hi.blue{background:linear-gradient(transparent 58%,color-mix(in oklab,var(--blue) 22%,transparent) 0)}
+
+.slidetag{display:inline-flex;align-items:center;gap:8px;font:800 .68rem/1 var(--mono);
+  letter-spacing:.14em;text-transform:uppercase;background:var(--yellow);color:var(--ink);
+  border:var(--stroke) solid var(--ink);border-radius:100px;padding:7px 14px;
+  box-shadow:var(--sh-sm);transform:rotate(-2deg);margin-bottom:20px}
+.slidetag.pink{background:var(--pink);color:#fff}
+.slidetag.blue{background:var(--blue);color:#fff}
+
+/* ── top chrome ───────────────────────────────────────────────── */
+.hud{position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:14px;
+  padding:11px 18px;background:var(--paper);border-bottom:var(--stroke) solid var(--ink)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.02rem;letter-spacing:-.035em;flex:none}
+.logo svg{width:18px;height:18px;flex:none}
+.hud .back{margin-left:6px;font:700 .68rem/1 var(--mono);letter-spacing:.04em;color:var(--ink-2);
+  border:2px solid var(--ink);border-radius:100px;padding:5px 10px;text-decoration:none;white-space:nowrap}
+.hud .back:hover{background:var(--tint)}
+.hud .meta{margin-left:auto;font:700 .68rem/1 var(--mono);letter-spacing:.1em;color:var(--ink-3);white-space:nowrap}
+.pbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--pink);z-index:71}
+
+/* ── section shell ────────────────────────────────────────────── */
+section{padding:clamp(80px,11vh,116px) 0 clamp(48px,7vh,80px);
+  position:relative;border-bottom:var(--stroke) solid var(--ink)}
+section:last-of-type{border-bottom:0}
+.sec-inner{width:100%}
+.sec-head{max-width:74ch;margin-bottom:clamp(26px,4vh,42px)}
+.sec-head h2{margin:.2em 0 .3em}
+
+/* ── cards & components (tokens copied verbatim from the app) ───── */
+.verdict{border:var(--stroke) solid var(--ink);border-radius:var(--r);padding:18px 20px;
+  background:var(--yellow);box-shadow:var(--sh);rotate:-.6deg;max-width:100%}
+.tag{font:800 .62rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  border:2px solid var(--ink);border-radius:100px;padding:6px 11px;display:inline-block}
+.tag.bad{background:var(--pink);color:#fff}
+.tag.ok{background:var(--green);color:#fff}
+.tag.blue{background:var(--blue);color:#fff}
+.tag.ghost{background:var(--paper)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.st{border:2px solid var(--ink);border-radius:11px;padding:13px 14px;background:var(--paper)}
+.st dt{font:700 .58rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.st dd{font-size:1.6rem;font-weight:800;letter-spacing:-.03em;margin-top:6px}
+.st dd small{font-size:.5em;font-weight:700;color:var(--ink-3);margin-left:2px}
+
+.method{display:inline-flex;align-items:center;gap:8px;font:600 .72rem/1.3 var(--mono);
+  letter-spacing:.02em;color:var(--ink-2);background:var(--paper);border:2px dashed var(--ink-3);
+  border-radius:9px;padding:10px 13px}
+.method b{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+
+/* panel cards */
+.panelrow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.panelcard{border:var(--stroke) solid var(--ink);border-radius:var(--r);background:var(--paper);
+  box-shadow:var(--sh-sm);padding:18px}
+.panelcard .who{font:800 .66rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  color:#fff;display:inline-block;border:2px solid var(--ink);border-radius:100px;padding:5px 11px;margin-bottom:12px}
+.panelcard.a .who{background:var(--blue)}
+.panelcard.b .who{background:var(--pink)}
+.panelcard.c .who{background:var(--green)}
+.panelcard h3{margin-bottom:6px}
+.panelcard p{font-size:.86rem;color:var(--ink-2);line-height:1.5;font-weight:550}
+.panelcard .kv{display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:2px dashed var(--ink-3)}
+.panelcard .kv div dt{font:700 .56rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.panelcard .kv div dd{font:800 1.2rem/1 var(--sans);margin-top:3px}
+
+/* the centrepiece test card */
+.testcard{border:var(--stroke) solid var(--ink);border-radius:var(--r);background:var(--ink);
+  color:#fff;box-shadow:9px 9px 0 var(--pink);padding:clamp(22px,3.4vw,40px);position:relative}
+.testcard .qmark{position:absolute;top:14px;right:20px;font:800 4rem/1 var(--sans);color:rgba(255,255,255,.08)}
+.testcard .q{font-size:clamp(1.3rem,2.6vw,1.9rem);font-weight:800;letter-spacing:-.02em;line-height:1.22;
+  max-width:34ch}
+.testcard .q .hl{color:var(--yellow)}
+.testcard .src{margin-top:16px;font:700 .68rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#fff;opacity:.6}
+
+.arith{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.arow{border:2px solid var(--ink);border-radius:10px;padding:14px 16px;background:var(--paper)}
+.arow.dead{background:color-mix(in oklab,var(--pink) 10%,#fff);border-color:var(--pink)}
+.arow .lab{font:700 .6rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.arow ul{list-style:none;font:650 .82rem/1.7 var(--mono);color:var(--ink-2)}
+.arow ul b{color:var(--ink);font-weight:800}
+@media(max-width:760px){.arith{grid-template-columns:1fr}}
+
+/* gate / kill grid */
+.gategrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.killcard{border:2px solid var(--ink);border-radius:11px;background:var(--paper);padding:14px 15px}
+.killcard.fatal{border-color:var(--pink)}
+.killcard .name{font-weight:800;font-size:1rem;letter-spacing:-.01em;margin-bottom:6px}
+.killcard .cause{font-size:.82rem;color:var(--ink-2);line-height:1.45;font-weight:550}
+.killcard .stampline{margin-top:10px;display:flex;align-items:center;gap:6px}
+
+/* prediction table */
+.predtable{width:100%;border-collapse:collapse;font-size:.88rem}
+.predtable th{text-align:left;font:700 .6rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);padding:8px 10px;border-bottom:2px solid var(--ink)}
+.predtable td{padding:9px 10px;border-bottom:1.5px solid var(--tint-2);font-weight:600}
+.predtable tr:hover td{background:var(--tint)}
+.predtable td.n{font:800 .95rem var(--sans)}
+.predtable .bar{display:inline-block;height:8px;background:var(--blue);border-radius:4px;vertical-align:middle;margin-right:8px}
+.predtable tr.hot td.n{color:var(--pink)}
+.predtable tr.hot .bar{background:var(--pink)}
+.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:11px;background:var(--paper);padding:6px 4px}
+
+/* moves list */
+.moves{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.move{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--ink);border-radius:10px;
+  padding:11px 13px;background:var(--paper)}
+.move i{font-style:normal;font:800 .7rem var(--mono);background:var(--ink);color:#fff;border-radius:6px;
+  width:22px;height:22px;display:grid;place-content:center;flex:none}
+.move span{font-size:.84rem;font-weight:600;color:var(--ink-2);line-height:1.4}
+@media(max-width:700px){.moves{grid-template-columns:1fr}}
+
+.escape{border:2px dashed var(--blue);border-radius:11px;padding:14px 16px;background:color-mix(in oklab,var(--blue) 6%,#fff)}
+.escape .lab{font:700 .6rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+
+/* kill ledger */
+.ledger{display:grid;gap:10px}
+.lrow{display:grid;grid-template-columns:minmax(140px,.9fr) 1fr;gap:16px;align-items:start;
+  border:2px solid var(--ink);border-radius:10px;padding:12px 15px;background:var(--paper)}
+.lrow .fmt{font-weight:800;font-size:.94rem}
+.lrow .fmt small{display:block;font:700 .62rem var(--mono);color:var(--ink-3);letter-spacing:.04em;margin-top:2px;font-weight:700}
+.lrow .cause{font-size:.85rem;color:var(--ink-2);font-weight:550;line-height:1.45}
+.lrow.veto{border-color:var(--pink);background:color-mix(in oklab,var(--pink) 6%,#fff)}
+@media(max-width:640px){.lrow{grid-template-columns:1fr;gap:6px}}
+
+/* runners up */
+.runners{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.runner{border:2px dashed var(--ink-3);border-radius:11px;padding:14px 15px;background:var(--paper)}
+.runner .name{font-weight:800;margin-bottom:5px}
+.runner p{font-size:.82rem;color:var(--ink-2);font-weight:550;line-height:1.45}
+
+/* receipts / decision log */
+.logwrap{border:2px solid var(--ink);border-radius:11px;background:var(--paper);overflow:hidden}
+.logtable{width:100%;border-collapse:collapse;font-size:.82rem}
+.logtable th{position:sticky;top:0;text-align:left;font:700 .58rem/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);background:var(--paper);padding:9px 12px;border-bottom:2px solid var(--ink)}
+.logtable td{padding:8px 12px;border-bottom:1.5px solid var(--tint-2);vertical-align:top;font-weight:550;color:var(--ink-2)}
+.logtable td.id{font:800 .74rem var(--mono);color:var(--ink);white-space:nowrap}
+.logtable td.d{color:var(--ink);font-weight:700}
+.logscroll{max-height:420px;overflow-y:auto}
+
+/* what it bought */
+.proofgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.proofcard{border:var(--stroke) solid var(--ink);border-radius:var(--r);background:var(--paper);
+  box-shadow:var(--sh-sm);padding:16px 18px}
+.proofcard h3{margin-bottom:6px}
+.proofcard p{font-size:.85rem;color:var(--ink-2);font-weight:550;line-height:1.5}
+.proofcard .n{font:800 1.6rem/1 var(--sans);letter-spacing:-.03em;margin-bottom:6px;color:var(--blue)}
+@media(max-width:760px){.proofgrid{grid-template-columns:1fr}}
+
+.closerow{margin-top:clamp(24px,4vh,40px)}
+footer{padding:clamp(36px,6vh,64px) 0 32px;border-top:var(--stroke) solid var(--ink);background:var(--paper)}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.foot .links{display:flex;gap:10px;flex-wrap:wrap}
+.foot .links a{font:700 .72rem/1 var(--mono);letter-spacing:.03em;border:2px solid var(--ink);
+  border-radius:100px;padding:8px 14px;text-decoration:none;background:var(--paper);box-shadow:var(--sh-sm)}
+.foot .links a:hover{background:var(--tint)}
+.foot .links a.go{background:var(--blue);color:#fff}
+
+.js [data-rev]{opacity:0;transform:translateY(20px);
+  transition:opacity .6s var(--d,0s) var(--e),transform .6s var(--d,0s) var(--e)}
+.js [data-rev].in{opacity:1;transform:none}
+
+@media(max-width:900px){
+  .panelrow{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .arith{grid-template-columns:1fr}
+  section{padding:clamp(72px,10vh,96px) 0 clamp(40px,6vh,56px)}
+}
+@media(max-width:560px){
+  .wrap{width:calc(100% - 26px)}
+  .lrow{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js [data-rev]{opacity:1;transform:none}
+}
+.chipbtn{font:700 .74rem/1 var(--sans);letter-spacing:-.01em;padding:9px 13px;border-radius:100px;
+  border:2px solid var(--ink);background:var(--paper);box-shadow:var(--sh-sm);
+  transition:transform .13s var(--e),box-shadow .13s var(--e);white-space:nowrap}
+.chipbtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.chipbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chipbtn.go{background:var(--blue);color:#fff}
+.chipbtn.ghost{box-shadow:none;border-color:var(--ink-3);color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<div class="pbar" id="pbar"></div>
+<header class="hud">
+  <div class="logo">
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="6.4" fill="none" stroke="var(--pink)" stroke-width="2.4"/>
+      <path d="M10 .5v19M.5 10h19" stroke="var(--ink)" stroke-width="1.6"/>
+    </svg>
+    PROOF
+  </div>
+  <a class="back" href="index.html">← the app</a>
+  <button class="chipbtn" id="btnCopyMd" data-label="Copy as Markdown">Copy as Markdown</button>
+    <button class="chipbtn" id="btnDownloadMd" data-label="Download .md">Download .md</button>
+    <div class="meta" id="hudmeta">01 / 08</div>
+</header>
+
+<main>
+
+<!-- ═══ 1 · COVER ══════════════════════════════════════════════ -->
+<section id="s1" data-slide="1">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>01 / 08 · The Process</p>
+    <h1 data-rev style="--d:.05s">We didn't pick<br>an idea. We <span class="hi pink">killed<br>sixty-three</span> of them.</h1>
+    <p class="lede" data-rev style="--d:.1s;margin-top:18px">
+      Every entrant in this hackathon will submit a product. Almost none will be able to show the
+      selection process behind it. We can — because we ran one on purpose: three AI panels,
+      each spawning its own fleet, generating candidates and then attacking each other's, against
+      two hard tests that killed ideas for cause, not for taste. This page is that record,
+      with nothing smoothed over.
+    </p>
+    <dl class="stats" data-rev style="--d:.16s;margin-top:26px;max-width:720px">
+      <div class="st"><dt>Panels</dt><dd class="num">3</dd></div>
+      <div class="st"><dt>Candidates generated</dt><dd class="num">~72</dd></div>
+      <div class="st"><dt>Candidates killed</dt><dd class="num">~63</dd></div>
+      <div class="st"><dt>Decisions logged</dt><dd class="num">29</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- ═══ 2 · THE METHOD ═════════════════════════════════════════ -->
+<section id="s2" data-slide="2">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>02 / 08 · The Method</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Three panels, cross-challenging each other.</h2>
+      <p class="lede" data-rev style="--d:.1s">Each Opus panel lead ran its own 4-agent Sonnet fleet. Two panels generated
+        candidates from opposite directions — one starting from the <em>format</em>, one from the
+        <em>mechanic</em>. A third didn't generate ideas at all: it simulated the other 200 people
+        in the room.</p>
+    </div>
+    <div class="panelrow" data-rev style="--d:.14s">
+      <div class="panelcard a">
+        <span class="who">panel-alpha</span>
+        <h3>Format-first</h3>
+        <p>Started from "what boring document is this," then found the mechanic. 24 candidates
+          generated. Top pick: a pay statement re-denominated into hours of your life — then
+          killed by its own panel (see next section).</p>
+        <div class="kv"><div><dt>Generated</dt><dd>24</dd></div><div><dt>Killed</dt><dd>21</dd></div></div>
+      </div>
+      <div class="panelcard b">
+        <span class="who">panel-beta</span>
+        <h3>Mechanic-first</h3>
+        <p>Started from "what hidden truth could a document reveal," then found the format. Killed
+          all four of its own receipt variants despite the highest raw drama, because three of its
+          four independent generators produced a grocery receipt <em>unprompted</em> — a direct
+          measurement of where the field is heading.</p>
+        <div class="kv"><div><dt>Generated</dt><dd>24</dd></div><div><dt>Killed</dt><dd>21</dd></div></div>
+      </div>
+      <div class="panelcard c">
+        <span class="who">adversary</span>
+        <h3>Field simulation</h3>
+        <p>Generated nothing. Four Sonnet agents role-played competitor archetypes — vibecoder,
+          full-stack dev, designer-founder, show-off engineer — and predicted what ~200 entrants
+          will actually build. Prediction, not fact; the ranking is what matters, not the exact counts.</p>
+        <div class="kv"><div><dt>Role-players</dt><dd>4</dd></div><div><dt>Formats ranked</dt><dd>10+</dd></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 3 · THE TEST THAT DECIDED EVERYTHING ═══════════════════ -->
+<section id="s3" data-slide="3">
+  <div class="wrap sec-inner">
+    <p class="slidetag pink" data-rev>03 / 08 · The Test</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">The question that killed the panel's own favourite idea.</h2>
+      <p class="lede" data-rev style="--d:.1s">Panel-alpha proposed a test, then applied it to its own
+        top-ranked candidate — and let it fail. That is the most intellectually honest moment
+        in the whole record, and it's the reason the final pick has no hollow centre.</p>
+    </div>
+
+    <div class="testcard" data-rev style="--d:.14s">
+      <span class="qmark">?</span>
+      <p class="q">Does the mechanic add information that was <span class="hl">NOT</span> in the
+        source document — or does it just re-render information that was already there?</p>
+      <p class="src">— the test panel-alpha proposed, then used against itself</p>
+    </div>
+
+    <div class="arith">
+      <div class="arow">
+        <div class="lab">The pitch</div>
+        <ul>
+          <li>Take a pay statement.</li>
+          <li>Re-denominate every line into <b>hours of your life</b>.</li>
+          <li>Hero: an 80-hour week bar, segmented by where the hours went.</li>
+          <li>"HOURS YOU KEPT: <b>14.2</b> of 80"</li>
+        </ul>
+      </div>
+      <div class="arow dead">
+        <div class="lab">What killed it</div>
+        <ul>
+          <li>Ran the real arithmetic: <b>Alberta</b> tax, CPP, EI, RRSP.</li>
+          <li>The drama — how few hours you "kept" — depended on those figures
+            being <b>dramatic</b>, not accurate.</li>
+          <li>A real paystub's math is mostly unremarkable. Making it hit hard meant
+            <b>inventing</b> a harsher deduction picture than reality.</li>
+          <li>Verdict: a monotonic transform of numbers already on the page —
+            it re-rendered the source, it didn't add to it.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="body" data-rev style="--d:.2s;margin-top:18px">
+      This is also why the final pick works: page breaks, blank-page detection, and ink coverage
+      are all genuinely measurable from a real rendered document. Nothing about the print dialog's
+      numbers has to be sweetened to be dramatic — see §7.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 4 · THE SECOND GATE ═════════════════════════════════════ -->
+<section id="s4" data-slide="4">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>04 / 08 · The Second Gate</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">If the data has to be invented, the idea is dead.</h2>
+      <p class="lede" data-rev style="--d:.1s">A harder, blunter rule than the first: not "is the
+        transform interesting" but "can this number be produced for real, in a browser, with no
+        backend." Five candidates died on exactly this, including the format that was locked
+        first.</p>
+    </div>
+    <div class="gategrid" data-rev style="--d:.14s">
+      <div class="killcard fatal">
+        <div class="name">DOSE — prescription dial</div>
+        <div class="cause">The 24-hour collision mechanic only read as dramatic with a 5th, fictional
+          drug on the dial. The one that shipped without it wasn't truthful.</div>
+        <div class="stampline"><span class="tag bad">data faked</span></div>
+      </div>
+      <div class="killcard fatal">
+        <div class="name">Subscriptions</div>
+        <div class="cause">No bank access. Every "you're paying for 4 things you forgot" number
+          would have been hand-typed, not discovered.</div>
+        <div class="stampline"><span class="tag bad">data faked</span></div>
+      </div>
+      <div class="killcard fatal">
+        <div class="name">Package tracking</div>
+        <div class="cause">No carrier access. The map, the ETA, the "it's stuck in customs" beat —
+          all invented.</div>
+        <div class="stampline"><span class="tag bad">data faked</span></div>
+      </div>
+      <div class="killcard fatal">
+        <div class="name">Utility bill</div>
+        <div class="cause">No meter access. The usage chart that makes the format work would be a
+          plausible-looking lie.</div>
+        <div class="stampline"><span class="tag bad">data faked</span></div>
+      </div>
+      <div class="killcard fatal">
+        <div class="name">Wifi captive portal</div>
+        <div class="cause">A genuinely hidden truth exists (encryption, logging, real speed) — but
+          it is unmeasurable from a browser, and the format is also a single-card canvas.</div>
+        <div class="stampline"><span class="tag bad">data faked</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 5 · THE CONVERGENCE TRAP ═══════════════════════════════ -->
+<section id="s5" data-slide="5">
+  <div class="wrap sec-inner">
+    <p class="slidetag blue" data-rev>05 / 08 · The Convergence Trap</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">The obvious pile-up, and the subtler one underneath it.</h2>
+      <p class="lede" data-rev style="--d:.1s">The field-simulation panel found what everyone
+        expects — and then something most people wouldn't think to look for.</p>
+    </div>
+
+    <h3 data-rev style="--d:.12s;margin-bottom:10px">The obvious pile-up (predicted, of ~200 entrants)</h3>
+    <div class="tablewrap" data-rev style="--d:.16s">
+      <table class="predtable">
+        <thead><tr><th>#</th><th>Format</th><th>Predicted count</th><th>Confidence</th></tr></thead>
+        <tbody>
+          <tr class="hot"><td>1</td><td>To-do / task manager</td><td class="n"><span class="bar" style="width:80px"></span>34–42</td><td>High</td></tr>
+          <tr><td>2</td><td>Weather</td><td class="n"><span class="bar" style="width:38px"></span>15–20</td><td>High</td></tr>
+          <tr><td>3</td><td>Notes / journal</td><td class="n"><span class="bar" style="width:36px"></span>15–19</td><td>High</td></tr>
+          <tr><td>4</td><td>Habit tracker</td><td class="n"><span class="bar" style="width:34px"></span>14–18</td><td>High</td></tr>
+          <tr><td>5</td><td>Expense / budget</td><td class="n"><span class="bar" style="width:32px"></span>13–17</td><td>High</td></tr>
+          <tr><td>6</td><td>Pomodoro timer</td><td class="n"><span class="bar" style="width:28px"></span>11–15</td><td>Med-high</td></tr>
+          <tr><td>7</td><td>Calculator</td><td class="n"><span class="bar" style="width:26px"></span>10–14</td><td>Med-high</td></tr>
+          <tr><td>8</td><td>Recipe / meal planner</td><td class="n"><span class="bar" style="width:22px"></span>9–13</td><td>Med</td></tr>
+          <tr><td>9</td><td>Calendar</td><td class="n"><span class="bar" style="width:20px"></span>8–12</td><td>Med</td></tr>
+          <tr><td>10</td><td>Music player</td><td class="n"><span class="bar" style="width:14px"></span>5–8</td><td>Med</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="body" data-rev style="--d:.2s;margin-top:12px">
+      ~85% of the field is predicted to land in these ten formats. To-do alone is roughly one
+      entrant in five. All ten, "gamification" included, were treated as saturated at any quality.
+    </p>
+
+    <div class="sec-head" style="margin-top:clamp(30px,5vh,50px)">
+      <h2 data-rev style="--d:.05s">The trap for the good ones.</h2>
+      <p class="lede" data-rev style="--d:.1s">The ~15–25 taste-literate entrants won't pick a
+        to-do list. They'll independently converge on the <em>same</em> look — because it's the
+        move a design-literate person reaches for. Being excellent there means being invisible.</p>
+    </div>
+    <div class="moves" data-rev style="--d:.14s">
+      <div class="move"><i>1</i><span>Near-black ground + exactly one saturated accent — acid green, hot
+        coral, electric indigo. "The Linear palette." Near-universal among tasteful entries.</span></div>
+      <div class="move"><i>2</i><span>Delete all icons; let type carry everything. ~30–40% of tasteful entries.</span></div>
+      <div class="move"><i>3</i><span>One oversized hero numeral at roughly 8× the surrounding type.</span></div>
+      <div class="move"><i>4</i><span>Mono metadata paired with a display/serif face for the one emotional word.</span></div>
+      <div class="move"><i>5</i><span>Tracked-out uppercase micro-labels around 10–12px.</span></div>
+      <div class="move"><i>6</i><span>Dashed tear-lines / CSS perforations as the one physical wink.</span></div>
+      <div class="move"><i>7</i><span>A rendered barcode or QR code used purely as decoration.</span></div>
+      <div class="move"><i>8</i><span>Hairline rules instead of shadows; huge negative space as the flex.</span></div>
+    </div>
+    <p class="body" data-rev style="--d:.18s;margin-top:14px">
+      The single most crowded slot at the top of the field is predicted to be the
+      <b>boarding pass / ticket / transit card</b> — an estimated 8–12 of the ~20 tasteful entries alone.
+    </p>
+    <div class="escape" data-rev style="--d:.22s;margin-top:16px;max-width:640px">
+      <div class="lab">Why PROOF is white, not near-black</div>
+      This is the finding this page is most directly downstream of. It kills reusing the <code>bty</code>
+      "acid" skin outright — the exact toxic-on-black direction we had in hand. The escape routes
+      identified were a non-dark, non-neon palette, or a one-line caption naming something no other
+      entry named. PROOF took the first: white ground, saturated primaries (<code>#2B3BFF</code> /
+      <code>#FF4D9E</code> / <code>#FFD21C</code>), hard offset shadows, rounded display type —
+      the <code>bty</code> "pop" skin, not "acid." <b>D19</b> in the decision log.
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6 · THE KILLS ═══════════════════════════════════════════ -->
+<section id="s6" data-slide="6">
+  <div class="wrap sec-inner">
+    <p class="slidetag pink" data-rev>06 / 08 · The Kills</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">The honest ledger.</h2>
+      <p class="lede" data-rev style="--d:.1s">Sixty-three ideas is too many to list individually.
+        These are the ones worth naming — including the two the user rejected outright,
+        overriding the panels.</p>
+    </div>
+
+    <h3 data-rev style="--d:.12s;margin-bottom:10px">Killed by the user, for failing instant comprehension</h3>
+    <div class="ledger" data-rev style="--d:.14s;margin-bottom:26px">
+      <div class="lrow veto">
+        <div class="fmt">DOSE<small>prescription dial</small></div>
+        <div class="cause"><span class="tag bad" style="margin-right:8px">vetoed</span>Locked as the
+          format first, then killed directly by Vlad: it failed instant comprehension, and its
+          collision mechanic only worked with an invented 5th drug (see the second gate, §4).</div>
+      </div>
+      <div class="lrow veto">
+        <div class="fmt">Insurance<small>as a floor plan</small></div>
+        <div class="cause"><span class="tag bad" style="margin-right:8px">vetoed</span>DOSE's
+          replacement. Its own panel had already flagged the failure mode before it died: without
+          the policy chrome on screen, it reads as an architecture tool before it reads as
+          insurance. It fell to the same test and didn't reach a locked build.</div>
+      </div>
+    </div>
+
+    <h3 data-rev style="--d:.12s;margin-bottom:10px">Killed on assessment, before the print dialog was chosen</h3>
+    <div class="ledger" data-rev style="--d:.14s;margin-bottom:26px">
+      <div class="lrow"><div class="fmt">Cancellation flow</div><div class="cause">Adds no information — only removes steps. Also too small a canvas.</div></div>
+      <div class="lrow"><div class="fmt">CAPTCHA</div><div class="cause">Adds no information; a working replacement is unbounded scope for a 2-hour build.</div></div>
+      <div class="lrow"><div class="fmt">Video call UI</div><div class="cause">No information added, and the canvas is already the most crowded video-call layout imaginable.</div></div>
+      <div class="lrow"><div class="fmt">Cookie banner</div><div class="cause">Best score on the information test of anything assessed — but too small a canvas for nested scroll reveal.</div></div>
+      <div class="lrow"><div class="fmt">Airline seat map</div><div class="cause">Real runner-up. Lost on novelty — SeatGuru already exists and does exactly this.</div></div>
+      <div class="lrow"><div class="fmt">Browser tabs</div><div class="cause">Real runner-up, and Vlad's genuine daily pain. Lost on crowdedness — OneTab, Toby, and Arc already solved it.</div></div>
+    </div>
+
+    <h3 data-rev style="--d:.12s;margin-bottom:10px">Killed inside the panels, round one</h3>
+    <div class="ledger" data-rev style="--d:.14s;margin-bottom:26px">
+      <div class="lrow"><div class="fmt">Report card<small>panel-alpha</small></div><div class="cause">Structurally a table plus sparklines; flat seed data collapses it into a reskin. "You turned children into stocks."</div></div>
+      <div class="lrow"><div class="fmt">Lab results portal<small>panel-alpha</small></div><div class="cause">Highest saturation of the three alpha finalists — health formats are a magnet — and risks reading as diagnosis rather than trajectory.</div></div>
+      <div class="lrow"><div class="fmt">Court docket<small>panel-alpha</small></div><div class="cause">"A to-do list in a wig."</div></div>
+      <div class="lrow"><div class="fmt">Newspaper classifieds<small>panel-alpha</small></div><div class="cause">The mechanic is invisible in a still frame.</div></div>
+      <div class="lrow"><div class="fmt">Credit-score-as-three-doors<small>panel-alpha</small></div><div class="cause">Gated on illustration quality that couldn't be guaranteed in a 2-hour build.</div></div>
+      <div class="lrow"><div class="fmt">Four receipt variants<small>panel-beta</small></div><div class="cause">Killed by its own panel despite the top raw drama — three of four independent generators produced a grocery receipt unprompted. A direct measurement of where the field converges.</div></div>
+      <div class="lrow"><div class="fmt">Pharmacy / PBM + 401(k)<small>panel-beta</small></div><div class="cause">American benefits infrastructure. There are no PBMs or 401(k)s in Calgary.</div></div>
+      <div class="lrow"><div class="fmt">Gas pump / queue display<small>panel-beta</small></div><div class="cause">Hardware panels aren't "application formats."</div></div>
+      <div class="lrow"><div class="fmt">Mortgage / credit-card statement<small>panel-beta</small></div><div class="cause">Fintech-adjacent, and "interest → years of your life" is a collision magnet — the brief itself names it.</div></div>
+      <div class="lrow"><div class="fmt">Pay-stub "value generated" column<small>panel-beta</small></div><div class="cause">The invented methodology reveals an argument, not a hidden number.</div></div>
+      <div class="lrow"><div class="fmt">Boarding pass & loyalty cards<small>panel-beta</small></div><div class="cause">Weaker siblings of the voicemail-archive idea below, and the most crowded slot in the whole field (§5).</div></div>
+    </div>
+
+    <h3 data-rev style="--d:.12s;margin-bottom:10px">Real runners-up — not killed, just outscored</h3>
+    <div class="runners" data-rev style="--d:.16s">
+      <div class="runner"><div class="name">Restaurant menu, as menu-engineering quadrant</div>
+        <p>Lowest saturation of anything either panel found — but it swaps the user from diner to
+          owner, which may read as replacing the format rather than reinventing it.</p></div>
+      <div class="runner"><div class="name">Every voicemail she ever left</div>
+        <p>Highest predicted LinkedIn-repost ceiling of anything generated. Risk: reads as data-art
+          rather than a reinvented app, and the "Mom" framing can read as cheap emotional leverage.</p></div>
+      <div class="runner"><div class="name">Jury duty summons, rewritten for you</div>
+        <p>Inverts who the document is addressed to. Lowest screenshot density — one page of
+          typography looks thin on its own.</p></div>
+      <div class="runner"><div class="name">Parking ticket, as a two-outcome decision card</div>
+        <p>Pay $85 vs. contest — 61% dismissal rate, ~12 min average. Beats jury duty on
+          recognizability, loses on novelty.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 7 · WHAT IT BOUGHT ═════════════════════════════════════ -->
+<section id="s7" data-slide="7">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>07 / 08 · What The Process Bought</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">A dialog where every number is real.</h2>
+      <p class="lede" data-rev style="--d:.1s">The print dialog survived both gates because
+        pagination, blank-page detection, and ink coverage are all genuinely measurable from a
+        real rendered document. That's not a claim — it's checked twice, automatically.</p>
+    </div>
+    <div class="proofgrid" data-rev style="--d:.14s">
+      <div class="proofcard">
+        <div class="n">241 glyph runs</div>
+        <h3>Ink is measured, not rendered as pixels</h3>
+        <p>Coverage comes from reading back the actual glyph-run rectangles the layout engine
+          produces (<code>Range.getClientRects</code>) across all 15 pages of the sample document
+          — never from rasterising the page and counting dark pixels.</p>
+      </div>
+      <div class="proofcard">
+        <div class="n">15 → 10</div>
+        <h3>Real pagination, real waste</h3>
+        <p>Of 15 paginated sheets, 5 are flagged as waste under a 2.0% ink-coverage threshold
+          (mean ink across all pages: 2.9%). Dropping them takes the job from 15 sheets to 10.</p>
+      </div>
+      <div class="proofcard">
+        <div class="n">20 / 20 passing</div>
+        <h3><code>verify.mjs</code></h3>
+        <p>Drives the real app in a real browser and asserts the claims on screen — every page
+          measured (never estimated), every waste page under threshold, dropped pages actually
+          excluded from the print root, no console errors, clean on mobile. 20 assertions, all
+          passing.</p>
+      </div>
+      <div class="proofcard">
+        <div class="n">A real PDF</div>
+        <h3><code>verify-print.mjs</code></h3>
+        <p>Renders the app to an actual PDF the way a printer would receive it, then counts the
+          pages in the output file. Full job: 15 pages. Reduced job: 10. Exactly the 5 dropped
+          sheets disappear. It caught a real bug — a trailing blank page from
+          <code>page-break-after</code> — which is now fixed.</p>
+      </div>
+    </div>
+    <p class="body" data-rev style="--d:.2s;margin-top:18px">
+      The method is stated in the app's own UI, not just in this document — a
+      "measured · glyph-run geometry" badge sits next to the count, because a tool that claims
+      to measure honestly should say how.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 8 · RECEIPTS / CLOSE ═══════════════════════════════════ -->
+<section id="s8" data-slide="8">
+  <div class="wrap sec-inner">
+    <p class="slidetag blue" data-rev>08 / 08 · The Receipts</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Every decision, in order, with why.</h2>
+      <p class="lede" data-rev style="--d:.1s">The direction changed several times — DOSE was
+        locked, then killed; the palette was reversed after D19; a "no reopening" rule was
+        deliberately broken once, on purpose. None of that is hidden. The changes are the
+        story, because each one was caused by evidence, not preference.</p>
+    </div>
+    <div class="logwrap" data-rev style="--d:.14s">
+      <div class="logscroll">
+        <table class="logtable">
+          <thead><tr><th style="width:52px">#</th><th>Decision</th><th>Rationale</th></tr></thead>
+          <tbody id="logbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <dl class="stats closerow" data-rev style="--d:.18s;max-width:640px">
+      <div class="st"><dt>Panels run</dt><dd class="num">3</dd></div>
+      <div class="st"><dt>Formats locked</dt><dd class="num">2</dd></div>
+      <div class="st"><dt>Hard gates</dt><dd class="num">2</dd></div>
+      <div class="st"><dt>Decisions logged</dt><dd class="num">29</dd></div>
+    </dl>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <p class="eyebrow">PROOF</p>
+        <h3>We can show our workings.</h3>
+      </div>
+      <div class="links">
+        <a href="index.html" class="go">Open the app →</a>
+        <a href="deck.html">The deck</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+const LOG = [
+["D1","Design-first; no product code until this spec is strong","User directive"],
+["D2","“Toxic” resolved to the ACID skin; both finalists recovered","Confirmed in commit d08003a"],
+["D3","Screenshot-first design supersedes motion-first","AI judges stills; motion scores zero"],
+["D4","Reject top-5 obvious formats outright","~200 entrants; saturation averages away our craft edge"],
+["D5","Target recognizability rank 6–20 (“high recognition, low saturation”)","Narrow band between saturated and unrecognizable"],
+["D6","Anti-AI-slop is a hard design requirement","Vibecoded field is the contrast medium; separation must be visible"],
+["D7","Timebox: 25% decide / 60% build / 15% capture","~2h total; capture is a budgeted deliverable, not a leftover"],
+["D8","Execution over concept. Idea hunt is a filter, not a search","Stills measure execution reliably, concept only by inference"],
+["D9","Hard cut on deciding; no reopening the pick","Analysis paralysis is the live risk with 7 agents running"],
+["D10","Claude owns design calls; Vlad holds veto + the 3 escalations","Explicit delegation of responsibility, accepted"],
+["D11","Interaction model = scroll-driven reveal of nested components","Vlad directive; the spine of the experience"],
+["D12","No backend. Single-file, no deps, no deploy","Invisible to judge, adds failure mode, steals craft time"],
+["D13","Desktop and mobile both first-class","Vlad directive; both appear in the submission"],
+["D14","Amended D3: motion is directed, not worthless — scripted capture picks peak frames","capture.mjs gives frame-exact control"],
+["D15","Capture harness built before the product","It is a graded deliverable, not a final chore"],
+["D16","FORMAT LOCKED: DOSE — prescriptions on one 24h dial","Passes the adds-information test; daily; whitespace; bounded build"],
+["D17","Pay stub abandoned after both panels killed it","Mechanic was a monotonic transform; hero frame re-rendered the source table"],
+["D18","Reopened D9’s “no reopening” once, deliberately","D9 guards against paralysis, not against disproof. Ignoring a disproof is cargo-culting process"],
+["D19","NOT the near-black + single-acid-accent palette","It is the uniform of the top ~20 entrants — excellent and invisible"],
+["D20","Short modern product presentation is a standing deliverable","Vlad directive; no need to re-ask"],
+["D21","Architecture is agentic, not scripted. MCP server + agentic memory + two-way integration","Vlad directive"],
+["D22","D12 amended: no web backend, but a local MCP process is required and is not a deploy risk","MCP is stdio, not hosting"],
+["D23","No implementation until Vlad approves the spec","Process correction — Claude started early, was wrong to"],
+["D24","DOSE killed by Vlad. Format switched to insurance-as-floor-plan","Failed instant-comprehension; collision mechanic needed a 5th drug to be truthful"],
+["D25","Instant comprehension is now a hard gate on any format","Judge scores Interesting/Memorable (r=.61-.85); usability polish correlates ~0"],
+["D26","Capture pinned: 1456x816 PNG, 2x supersampled, never a tall full-page grab","28px patch tokenization; 1440x5000 collapses to 451x1568 and destroys glyphs"],
+["D27","FORMAT LOCKED: the print dialog (Vlad’s choice)","Only survivor whose every on-screen number is computable for real"],
+["D28","New hard gate: if the data must be invented, the idea is dead","Killed 5 candidates; it is the fault that killed DOSE"],
+["D29","Saturation demoted from disqualifier to tiebreaker","Goal is to be BEST at the task, not unique. Saturation only bites under comparative judging"]
+];
+document.getElementById('logbody').innerHTML = LOG.map(([id,d,r]) =>
+  `<tr><td class="id">${id}</td><td class="d">${d}</td><td>${r}</td></tr>`).join('');
+
+(function(){
+  const doc=document.documentElement;
+  doc.classList.remove('no-js'); doc.classList.add('js');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+  }),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+  document.querySelectorAll('[data-rev]').forEach(n=>io.observe(n));
+  if(reduced) document.querySelectorAll('[data-rev]').forEach(n=>n.classList.add('in'));
+
+  const meta=document.getElementById('hudmeta');
+  const secs=[...document.querySelectorAll('section[data-slide]')];
+  const sio=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting) meta.textContent = e.target.dataset.slide.padStart(2,'0') + ' / 08'; });
+  },{threshold:.35});
+  secs.forEach(s=>sio.observe(s));
+
+  const pbar=document.getElementById('pbar');
+  let dirty=true;
+  addEventListener('scroll',()=>{dirty=true},{passive:true});
+  (function loop(){
+    if(dirty){
+      dirty=false;
+      const max=doc.scrollHeight-innerHeight;
+      pbar.style.width=(max>0?Math.min(1,scrollY/max)*100:0)+'%';
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+<script>
+const PAGE_MD = "# PROOF — the process behind it\n\n> We didn't pick an idea. We killed sixty-three of them. Every entrant in this hackathon will submit a product. Almost none will be able to show the selection process behind it. We can — because we ran one on purpose: three AI panels, each spawning its own fleet, generating candidates and then attacking each other's, against two hard tests that killed ideas for cause, not for taste. This page is that record, with nothing smoothed over.\n\n| Panels | Candidates generated | Candidates killed | Decisions logged |\n|---|---|---|---|\n| 3 | ~72 | ~63 | 29 |\n\n---\n\n## 1. The method: three panels, cross-challenging each other\n\nEach Opus panel lead ran its own 4-agent Sonnet fleet. Two panels generated candidates from opposite directions — one starting from the *format*, one from the *mechanic*. A third didn't generate ideas at all: it simulated the other 200 people in the room.\n\n**panel-alpha — Format-first**\nStarted from \"what boring document is this,\" then found the mechanic. 24 candidates generated. Top pick: a pay statement re-denominated into hours of your life — then killed by its own panel (see §3). Generated 24, killed 21.\n\n**panel-beta — Mechanic-first**\nStarted from \"what hidden truth could a document reveal,\" then found the format. Killed all four of its own receipt variants despite the highest raw drama, because three of its four independent generators produced a grocery receipt *unprompted* — a direct measurement of where the field is heading. Generated 24, killed 21.\n\n**adversary — Field simulation**\nGenerated nothing. Four Sonnet agents role-played competitor archetypes — vibecoder, full-stack dev, designer-founder, show-off engineer — and predicted what ~200 entrants will actually build. Prediction, not fact; the ranking is what matters, not the exact counts. 4 role-players, 10+ formats ranked.\n\n---\n\n## 2. The test that decided everything\n\nPanel-alpha proposed a test, then applied it to its own top-ranked candidate — and let it fail. That is the most intellectually honest moment in the whole record, and it's the reason the final pick has no hollow centre.\n\n> \"Does the mechanic add information that was **NOT** in the source document — or does it just re-render information that was already there?\"\n> — the test panel-alpha proposed, then used against itself\n\n**The pitch:**\n- Take a pay statement.\n- Re-denominate every line into **hours of your life**.\n- Hero: an 80-hour week bar, segmented by where the hours went.\n- \"HOURS YOU KEPT: **14.2** of 80\"\n\n**What killed it:**\n- Ran the real arithmetic: Alberta tax, CPP, EI, RRSP.\n- The drama — how few hours you \"kept\" — depended on those figures being dramatic, not accurate.\n- A real paystub's math is mostly unremarkable. Making it hit hard meant inventing a harsher deduction picture than reality.\n- Verdict: a monotonic transform of numbers already on the page — it re-rendered the source, it didn't add to it.\n\nThis is also why the final pick works: page breaks, blank-page detection, and ink coverage are all genuinely measurable from a real rendered document. Nothing about the print dialog's numbers has to be sweetened to be dramatic — see §7.\n\n---\n\n## 3. The second gate: if the data has to be invented, the idea is dead\n\nA harder, blunter rule than the first: not \"is the transform interesting\" but \"can this number be produced for real, in a browser, with no backend.\" Five candidates died on exactly this, including the format that was locked first.\n\n| Candidate | Why it failed |\n|---|---|\n| DOSE — prescription dial | The 24-hour collision mechanic only read as dramatic with a 5th, fictional drug on the dial. The one that shipped without it wasn't truthful. |\n| Subscriptions | No bank access. Every \"you're paying for 4 things you forgot\" number would have been hand-typed, not discovered. |\n| Package tracking | No carrier access. The map, the ETA, the \"it's stuck in customs\" beat — all invented. |\n| Utility bill | No meter access. The usage chart that makes the format work would be a plausible-looking lie. |\n| Wifi captive portal | A genuinely hidden truth exists (encryption, logging, real speed) — but it is unmeasurable from a browser, and the format is also a single-card canvas. |\n\nAll five stamped: **data faked.**\n\n---\n\n## 4. The convergence trap\n\nThe field-simulation panel found what everyone expects — and then something most people wouldn't think to look for.\n\n### The obvious pile-up (predicted, of ~200 entrants)\n\n| # | Format | Predicted count | Confidence |\n|---|---|---|---|\n| 1 | To-do / task manager | 34–42 | High |\n| 2 | Weather | 15–20 | High |\n| 3 | Notes / journal | 15–19 | High |\n| 4 | Habit tracker | 14–18 | High |\n| 5 | Expense / budget | 13–17 | High |\n| 6 | Pomodoro timer | 11–15 | Med-high |\n| 7 | Calculator | 10–14 | Med-high |\n| 8 | Recipe / meal planner | 9–13 | Med |\n| 9 | Calendar | 8–12 | Med |\n| 10 | Music player | 5–8 | Med |\n\n~85% of the field is predicted to land in these ten formats. To-do alone is roughly one entrant in five. All ten, \"gamification\" included, were treated as saturated at any quality.\n\n### The trap for the good ones\n\nThe ~15–25 taste-literate entrants won't pick a to-do list. They'll independently converge on the *same* look — because it's the move a design-literate person reaches for. Being excellent there means being invisible.\n\n1. Near-black ground + exactly one saturated accent — acid green, hot coral, electric indigo. \"The Linear palette.\" Near-universal among tasteful entries.\n2. Delete all icons; let type carry everything. ~30–40% of tasteful entries.\n3. One oversized hero numeral at roughly 8× the surrounding type.\n4. Mono metadata paired with a display/serif face for the one emotional word.\n5. Tracked-out uppercase micro-labels around 10–12px.\n6. Dashed tear-lines / CSS perforations as the one physical wink.\n7. A rendered barcode or QR code used purely as decoration.\n8. Hairline rules instead of shadows; huge negative space as the flex.\n\nThe single most crowded slot at the top of the field is predicted to be the **boarding pass / ticket / transit card** — an estimated 8–12 of the ~20 tasteful entries alone.\n\n**Why PROOF is white, not near-black.** This is the finding this page is most directly downstream of. It kills reusing the `bty` \"acid\" skin outright — the exact toxic-on-black direction we had in hand. The escape routes identified were a non-dark, non-neon palette, or a one-line caption naming something no other entry named. PROOF took the first: white ground, saturated primaries (`#2B3BFF` / `#FF4D9E` / `#FFD21C`), hard offset shadows, rounded display type — the `bty` \"pop\" skin, not \"acid.\" Decision **D19**.\n\n---\n\n## 5. The kills: the honest ledger\n\nSixty-three ideas is too many to list individually. These are the ones worth naming — including the two the user rejected outright, overriding the panels.\n\n### Killed by the user, for failing instant comprehension\n\n| Candidate | Cause |\n|---|---|\n| DOSE (prescription dial) | Vetoed. Locked as the format first, then killed directly by Vlad: it failed instant comprehension, and its collision mechanic only worked with an invented 5th drug (§3). |\n| Insurance (as a floor plan) | Vetoed. DOSE's replacement. Its own panel had already flagged the failure mode before it died: without the policy chrome on screen, it reads as an architecture tool before it reads as insurance. It fell to the same test and didn't reach a locked build. |\n\n### Killed on assessment, before the print dialog was chosen\n\n| Candidate | Cause |\n|---|---|\n| Cancellation flow | Adds no information — only removes steps. Also too small a canvas. |\n| CAPTCHA | Adds no information; a working replacement is unbounded scope for a 2-hour build. |\n| Video call UI | No information added, and the canvas is already the most crowded video-call layout imaginable. |\n| Cookie banner | Best score on the information test of anything assessed — but too small a canvas for nested scroll reveal. |\n| Airline seat map | Real runner-up. Lost on novelty — SeatGuru already exists and does exactly this. |\n| Browser tabs | Real runner-up, and Vlad's genuine daily pain. Lost on crowdedness — OneTab, Toby, and Arc already solved it. |\n\n### Killed inside the panels, round one\n\n| Candidate | Panel | Cause |\n|---|---|---|\n| Report card | panel-alpha | Structurally a table plus sparklines; flat seed data collapses it into a reskin. \"You turned children into stocks.\" |\n| Lab results portal | panel-alpha | Highest saturation of the three alpha finalists — health formats are a magnet — and risks reading as diagnosis rather than trajectory. |\n| Court docket | panel-alpha | \"A to-do list in a wig.\" |\n| Newspaper classifieds | panel-alpha | The mechanic is invisible in a still frame. |\n| Credit-score-as-three-doors | panel-alpha | Gated on illustration quality that couldn't be guaranteed in a 2-hour build. |\n| Four receipt variants | panel-beta | Killed by its own panel despite the top raw drama — three of four independent generators produced a grocery receipt unprompted. A direct measurement of where the field converges. |\n| Pharmacy / PBM + 401(k) | panel-beta | American benefits infrastructure. There are no PBMs or 401(k)s in Calgary. |\n| Gas pump / queue display | panel-beta | Hardware panels aren't \"application formats.\" |\n| Mortgage / credit-card statement | panel-beta | Fintech-adjacent, and \"interest → years of your life\" is a collision magnet — the brief itself names it. |\n| Pay-stub \"value generated\" column | panel-beta | The invented methodology reveals an argument, not a hidden number. |\n| Boarding pass & loyalty cards | panel-beta | Weaker siblings of the voicemail-archive idea below, and the most crowded slot in the whole field (§4). |\n\n### Real runners-up — not killed, just outscored\n\n| Candidate | Note |\n|---|---|\n| Restaurant menu, as menu-engineering quadrant | Lowest saturation of anything either panel found — but it swaps the user from diner to owner, which may read as replacing the format rather than reinventing it. |\n| Every voicemail she ever left | Highest predicted LinkedIn-repost ceiling of anything generated. Risk: reads as data-art rather than a reinvented app, and the \"Mom\" framing can read as cheap emotional leverage. |\n| Jury duty summons, rewritten for you | Inverts who the document is addressed to. Lowest screenshot density — one page of typography looks thin on its own. |\n| Parking ticket, as a two-outcome decision card | Pay $85 vs. contest — 61% dismissal rate, ~12 min average. Beats jury duty on recognizability, loses on novelty. |\n\n---\n\n## 6. What the process bought\n\nThe print dialog survived both gates because pagination, blank-page detection, and ink coverage are all genuinely measurable from a real rendered document. That's not a claim — it's checked twice, automatically.\n\n- **241 glyph runs** — ink is measured, not rendered as pixels. Coverage comes from reading back the actual glyph-run rectangles the layout engine produces (`Range.getClientRects`) across all 15 pages of the sample document — never from rasterising the page and counting dark pixels.\n- **15 → 10** — real pagination, real waste. Of 15 paginated sheets, 5 are flagged as waste under a 2.0% ink-coverage threshold (mean ink across all pages: 2.9%). Dropping them takes the job from 15 sheets to 10.\n- **20 / 20 passing** — `verify.mjs` drives the real app in a real browser and asserts the claims on screen — every page measured (never estimated), every waste page under threshold, dropped pages actually excluded from the print root, no console errors, clean on mobile. 20 assertions, all passing.\n- **A real PDF** — `verify-print.mjs` renders the app to an actual PDF the way a printer would receive it, then counts the pages in the output file. Full job: 15 pages. Reduced job: 10. Exactly the 5 dropped sheets disappear. It caught a real bug — a trailing blank page from `page-break-after` — which is now fixed.\n\nThe method is stated in the app's own UI, not just in this document — a \"measured · glyph-run geometry\" badge sits next to the count, because a tool that claims to measure honestly should say how.\n\n---\n\n## 7. The receipts: every decision, in order, with why\n\nThe direction changed several times — DOSE was locked, then killed; the palette was reversed after D19; a \"no reopening\" rule was deliberately broken once, on purpose. None of that is hidden. The changes are the story, because each one was caused by evidence, not preference.\n\n| # | Decision | Rationale |\n|---|---|---|\n| D1 | Design-first; no product code until this spec is strong | User directive |\n| D2 | \"Toxic\" resolved to the ACID skin; both finalists recovered | Confirmed in commit d08003a |\n| D3 | Screenshot-first design supersedes motion-first | AI judges stills; motion scores zero |\n| D4 | Reject top-5 obvious formats outright | ~200 entrants; saturation averages away our craft edge |\n| D5 | Target recognizability rank 6–20 (\"high recognition, low saturation\") | Narrow band between saturated and unrecognizable |\n| D6 | Anti-AI-slop is a hard design requirement | Vibecoded field is the contrast medium; separation must be visible |\n| D7 | Timebox: 25% decide / 60% build / 15% capture | ~2h total; capture is a budgeted deliverable, not a leftover |\n| D8 | Execution over concept. Idea hunt is a filter, not a search | Stills measure execution reliably, concept only by inference |\n| D9 | Hard cut on deciding; no reopening the pick | Analysis paralysis is the live risk with 7 agents running |\n| D10 | Claude owns design calls; Vlad holds veto + the 3 escalations | Explicit delegation of responsibility, accepted |\n| D11 | Interaction model = scroll-driven reveal of nested components | Vlad directive; the spine of the experience |\n| D12 | No backend. Single-file, no deps, no deploy | Invisible to judge, adds failure mode, steals craft time |\n| D13 | Desktop and mobile both first-class | Vlad directive; both appear in the submission |\n| D14 | Amended D3: motion is directed, not worthless — scripted capture picks peak frames | capture.mjs gives frame-exact control |\n| D15 | Capture harness built before the product | It is a graded deliverable, not a final chore |\n| D16 | FORMAT LOCKED: DOSE — prescriptions on one 24h dial | Passes the adds-information test; daily; whitespace; bounded build |\n| D17 | Pay stub abandoned after both panels killed it | Mechanic was a monotonic transform; hero frame re-rendered the source table |\n| D18 | Reopened D9's \"no reopening\" once, deliberately | D9 guards against paralysis, not against disproof. Ignoring a disproof is cargo-culting process |\n| D19 | NOT the near-black + single-acid-accent palette | It is the uniform of the top ~20 entrants — excellent and invisible |\n| D20 | Short modern product presentation is a standing deliverable | Vlad directive; no need to re-ask |\n| D21 | Architecture is agentic, not scripted. MCP server + agentic memory + two-way integration | Vlad directive |\n| D22 | D12 amended: no web backend, but a local MCP process is required and is not a deploy risk | MCP is stdio, not hosting |\n| D23 | No implementation until Vlad approves the spec | Process correction — Claude started early, was wrong to |\n| D24 | DOSE killed by Vlad. Format switched to insurance-as-floor-plan | Failed instant-comprehension; collision mechanic needed a 5th drug to be truthful |\n| D25 | Instant comprehension is now a hard gate on any format | Judge scores Interesting/Memorable (r=.61-.85); usability polish correlates ~0 |\n| D26 | Capture pinned: 1456x816 PNG, 2x supersampled, never a tall full-page grab | 28px patch tokenization; 1440x5000 collapses to 451x1568 and destroys glyphs |\n| D27 | FORMAT LOCKED: the print dialog (Vlad's choice) | Only survivor whose every on-screen number is computable for real |\n| D28 | New hard gate: if the data must be invented, the idea is dead | Killed 5 candidates; it is the fault that killed DOSE |\n| D29 | Saturation demoted from disqualifier to tiebreaker | Goal is to be BEST at the task, not unique. Saturation only bites under comparative judging |\n\n**Panels run:** 3 · **Formats locked:** 2 · **Hard gates:** 2 · **Decisions logged:** 29\n\n---\n\nWe can show our workings. — Cursor Hackathon · Calgary · 2026\n";
+
+/* ── Copy-as-Markdown / Download .md — agent-readable doc controls ── */
+function proofShowFeedback(btn, msg, ms){
+  ms = ms || 1500;
+  var original = btn.dataset.label || btn.textContent;
+  btn.dataset.label = original;
+  btn.textContent = msg;
+  btn.disabled = true;
+  setTimeout(function(){ btn.textContent = original; btn.disabled = false; }, ms);
+}
+function proofRevealMarkdown(md){
+  var box = document.getElementById('mdReveal');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'mdReveal';
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(20,17,38,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    box.innerHTML = '<div style="background:#fff;border:3px solid #141126;border-radius:14px;padding:20px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:10px;box-shadow:8px 8px 0 #141126">'
+      + '<strong style="font:800 .88rem/1.3 system-ui,-apple-system,sans-serif">Clipboard unavailable here — select all and copy manually</strong>'
+      + '<textarea readonly style="width:100%;height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;padding:10px;border:2px solid #141126;border-radius:8px;resize:vertical" id="mdRevealTa"></textarea>'
+      + '<button class="chipbtn go" id="mdRevealClose" style="align-self:flex-end">Close</button>'
+      + '</div>';
+    document.body.appendChild(box);
+    document.getElementById('mdRevealClose').addEventListener('click', function(){ box.remove(); });
+  }
+  var ta = document.getElementById('mdRevealTa');
+  ta.value = md;
+  ta.focus();
+  ta.select();
+}
+function proofCopyMarkdown(btn, md){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(md).then(function(){
+      proofShowFeedback(btn, 'Copied');
+    }, function(){ proofCopyFallback(btn, md); });
+  } else {
+    proofCopyFallback(btn, md);
+  }
+}
+function proofCopyFallback(btn, md){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = md;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok){ proofShowFeedback(btn, 'Copied'); return; }
+    proofRevealMarkdown(md);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+function proofDownloadMarkdown(md, filename){
+  try{
+    var blob = new Blob([md], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+(function(){
+  var copyBtn = document.getElementById('btnCopyMd');
+  var dlBtn = document.getElementById('btnDownloadMd');
+  if(copyBtn) copyBtn.addEventListener('click', function(){ proofCopyMarkdown(copyBtn, PAGE_MD); });
+  if(dlBtn) dlBtn.addEventListener('click', function(){ proofDownloadMarkdown(PAGE_MD, "process.md"); });
+})();
+
+</script>
+</body>
+</html>

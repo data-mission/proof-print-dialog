@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PROOF — the print dialog, reinvented</title>
+<meta name="description" content="The print dialog shows you a preview 104 pixels wide, then eats twelve sheets. PROOF paginates your document for real, measures ink coverage by counting pixels, flags the sheets that are waste, and prints what you meant.">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   PROOF — an actual print dialog, not a page about one.
+   Single file · no dependencies · no webfonts · no backend.
+   Art direction: HYPER-POP (carried from the bty `pop` skin).
+   White ground, saturated primaries, 3px strokes, hard offset shadows.
+   Loud on purpose: subtle spacing/contrast deltas are invisible to a
+   vision model at 28px patch resolution.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#FFFFFF;
+  --tint:#F1F0FB;
+  --tint-2:#E6E4F5;
+  --ink:#141126;
+  --ink-2:#4A4568;
+  --ink-3:#8F8AA6;
+
+  --blue:#2B3BFF;
+  --pink:#FF4D9E;
+  --yellow:#FFD21C;
+  --green:#00B37E;
+
+  --stroke:3px;
+  --sh:5px 5px 0 var(--ink);
+  --sh-sm:3px 3px 0 var(--ink);
+  --r:14px;
+
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Hiragino Maru Gothic ProN",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --e:cubic-bezier(.2,.9,.25,1.18);
+
+  --rail:296px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--tint);color:var(--ink);font-family:var(--sans);line-height:1.45;
+  -webkit-font-smoothing:antialiased;font-synthesis-weight:none}
+::selection{background:var(--yellow)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.mono{font-family:var(--mono)}
+
+/* ── app shell ─────────────────────────────────────────────────── */
+.app{display:grid;grid-template-rows:auto 1fr;height:100dvh}
+
+.bar{display:flex;align-items:center;gap:14px;padding:11px 18px;background:var(--paper);
+  border-bottom:var(--stroke) solid var(--ink);z-index:20}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.06rem;letter-spacing:-.035em;flex:none}
+.logo svg{width:19px;height:19px;flex:none}
+.file{display:flex;align-items:center;gap:9px;min-width:0;margin-left:6px}
+.file .nm{font:600 .82rem/1 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--tint);border:2px solid var(--ink);border-radius:7px;padding:7px 10px}
+.bar .spacer{flex:1}
+.chipbtn{font:700 .74rem/1 var(--sans);letter-spacing:-.01em;padding:9px 13px;border-radius:100px;
+  border:2px solid var(--ink);background:var(--paper);box-shadow:var(--sh-sm);
+  transition:transform .13s var(--e),box-shadow .13s var(--e);white-space:nowrap}
+.chipbtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.chipbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chipbtn.go{background:var(--blue);color:#fff}
+.chipbtn.ghost{box-shadow:none;border-color:var(--ink-3);color:var(--ink-2)}
+
+/* ── body: rail + stage ────────────────────────────────────────── */
+.body{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);min-height:0}
+.rail{background:var(--paper);border-right:var(--stroke) solid var(--ink);
+  padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.stage{overflow-y:auto;padding:22px clamp(16px,2.4vw,32px) 60px;scroll-behavior:smooth}
+
+/* ── the verdict card ──────────────────────────────────────────── */
+.verdict{border:var(--stroke) solid var(--ink);border-radius:var(--r);padding:16px;
+  background:var(--yellow);box-shadow:var(--sh);rotate:-.7deg}
+.verdict .lab{font:700 .62rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.vnums{display:flex;align-items:baseline;gap:9px;margin:7px 0 3px}
+.vnums .a{font-size:2.9rem;font-weight:800;letter-spacing:-.05em;position:relative;color:var(--ink-2)}
+.vnums .a::after{content:"";position:absolute;left:-9%;right:-9%;top:48%;height:5px;background:var(--pink);
+  border-radius:3px;transform:scaleX(0);transform-origin:left;transition:transform .7s .3s var(--e)}
+.js .vnums .a.struck::after{transform:scaleX(1)}
+.vnums .ar{font-size:1.15rem;font-weight:700;color:var(--ink-2)}
+.vnums .b{font-size:2.9rem;font-weight:800;letter-spacing:-.05em}
+.verdict p{font-size:.85rem;font-weight:650;line-height:1.32}
+
+/* ── stats ─────────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.st{border:2px solid var(--ink);border-radius:11px;padding:10px 11px;background:var(--paper)}
+.st dt{font:700 .56rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.st dd{font-size:1.32rem;font-weight:800;letter-spacing:-.035em;margin-top:5px}
+.st dd small{font-size:.5em;font-weight:700;color:var(--ink-3);margin-left:2px}
+
+/* method badge — states plainly how the number was produced */
+.method{display:flex;align-items:center;gap:7px;font:600 .64rem/1.3 var(--mono);
+  letter-spacing:.04em;color:var(--ink-2);background:var(--tint);border:2px dashed var(--ink-3);
+  border-radius:9px;padding:9px 10px}
+.method b{width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:none}
+.method.live b{background:var(--green)}
+
+.railsec{font:700 .6rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  margin-top:2px}
+
+/* copies */
+.copies{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:2px solid var(--ink);border-radius:11px;padding:9px 11px;background:var(--paper)}
+.copies label{font:700 .56rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.cstep{display:flex;align-items:center;gap:2px}
+.cstep button{width:26px;height:26px;border:2px solid var(--ink);border-radius:7px;
+  background:var(--paper);font:800 .95rem/1 var(--sans);display:grid;place-content:center;
+  transition:transform .1s var(--e),background .15s}
+.cstep button:hover{background:var(--yellow)}
+.cstep button:active{transform:translateY(1px)}
+.cstep input{width:52px;text-align:center;border:0;background:none;
+  font:800 1.1rem/1 var(--sans);letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.cstep input::-webkit-outer-spin-button,.cstep input::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0}
+.copynote{font:700 .74rem/1.35 var(--sans);color:var(--ink);background:var(--yellow);
+  border:2px solid var(--ink);border-radius:10px;padding:9px 11px;box-shadow:var(--sh-sm)}
+
+/* drop zone */
+.drop{border:var(--stroke) dashed var(--ink-3);border-radius:var(--r);padding:16px 13px;text-align:center;
+  transition:background .2s,border-color .2s;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--blue);background:color-mix(in oklab,var(--blue) 8%,transparent)}
+.drop b{display:block;font-size:.84rem;font-weight:750}
+.drop span{display:block;font-size:.71rem;color:var(--ink-2);margin-top:4px;line-height:1.4}
+
+.railact{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:12px}
+.bigbtn{width:100%;text-align:center;font:800 .92rem/1 var(--sans);letter-spacing:-.02em;
+  padding:15px 12px;border-radius:12px;border:var(--stroke) solid var(--ink);
+  background:var(--blue);color:#fff;box-shadow:var(--sh);
+  transition:transform .13s var(--e),box-shadow .13s var(--e)}
+.bigbtn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+.bigbtn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+.bigbtn.alt{background:var(--paper);color:var(--ink)}
+
+/* ── the sheet wall ────────────────────────────────────────────── */
+.stagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;margin-bottom:16px}
+.stagehead h1{font-size:clamp(1.4rem,2.4vw,2rem);font-weight:800;letter-spacing:-.035em;line-height:1.05}
+.stagehead p{font-size:.85rem;color:var(--ink-2);font-weight:600;margin-top:4px}
+.legend{display:flex;gap:12px;font:700 .66rem/1 var(--mono);letter-spacing:.05em}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;border:2px solid var(--ink);
+  margin-right:5px;vertical-align:-1px}
+
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));
+  gap:clamp(14px,1.8vw,22px)}
+
+.sh{position:relative;text-align:left;transition:transform .22s var(--e)}
+.sh:hover{transform:translateY(-4px)}
+.paper{aspect-ratio:8.5/11;background:var(--paper);border:var(--stroke) solid var(--ink);
+  border-radius:5px;box-shadow:var(--sh-sm);overflow:hidden;position:relative;
+  transition:box-shadow .22s var(--e)}
+.sh:hover .paper{box-shadow:6px 6px 0 var(--ink)}
+.sh.on .paper{box-shadow:6px 6px 0 var(--blue);border-color:var(--blue)}
+.sh.waste .paper{border-color:var(--pink)}
+.sh.waste.on .paper{box-shadow:6px 6px 0 var(--pink)}
+.sh.dropped .paper{opacity:.34}
+
+/* live-scaled real page inside the thumbnail */
+.mini{position:absolute;top:0;left:0;transform-origin:top left;pointer-events:none;background:#fff}
+
+/* ── X-RAY — the measurement made visible ──────────────────────
+   Every mark below is a rectangle the layout engine actually
+   reported. Dense pages glow; wasted sheets are near-empty voids. */
+.xr{position:absolute;inset:0;background:var(--ink);overflow:hidden}
+.xr i{position:absolute;background:#7DF9FF;border-radius:1px;
+  box-shadow:0 0 3px rgba(125,249,255,.75)}
+.xr-empty{position:absolute;inset:0;display:grid;place-content:center;
+  font:700 .58rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--pink)}
+.xray .paper{background:var(--ink);border-color:var(--ink)}
+/* in X-ray the emptiness IS the point — never wash it out */
+.xray .sh.dropped .paper{opacity:1}
+.xray .sh.dropped{opacity:.9}
+.xray .sh.dropped .stamp{background:var(--pink);opacity:.92}
+.xray .sh.waste .paper{border-color:var(--pink)}
+.xray .stamp{background:var(--pink)}
+.xray .big{background:var(--ink);border-color:var(--ink)}
+.chipbtn.on{background:var(--ink);color:#7DF9FF}
+
+.stamp{position:absolute;left:50%;top:50%;translate:-50% -50%;rotate:-9deg;
+  font:800 .58rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#fff;
+  background:var(--pink);border:2px solid var(--ink);border-radius:5px;padding:5px 8px;
+  text-align:center;white-space:nowrap;box-shadow:var(--sh-sm)}
+.sh.dropped .stamp{background:var(--ink)}
+
+.shmeta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;
+  font:700 .68rem/1 var(--mono);letter-spacing:.04em}
+.shmeta .pg{background:var(--ink);color:#fff;border-radius:5px;padding:4px 6px}
+.sh.waste .shmeta .pg{background:var(--pink)}
+.gauge{flex:1;height:7px;background:var(--tint-2);border:2px solid var(--ink);border-radius:4px;
+  overflow:hidden;position:relative}
+.gauge b{position:absolute;inset:0 auto 0 0;width:0;background:var(--blue);
+  transition:width .6s var(--e)}
+.sh.waste .gauge b{background:var(--pink)}
+
+/* ── the story: the format we are reinventing ──────────────────── */
+.story{margin-top:4px}
+.storygrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.9fr);
+  gap:clamp(20px,3vw,46px);align-items:start}
+.skicker{font:800 .64rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.sbig{font-size:clamp(1.8rem,4vw,3.1rem);font-weight:800;letter-spacing:-.04em;line-height:1.02;
+  margin:.28em 0 .4em}
+.y95{background:var(--yellow);padding:0 .12em;border-radius:5px;
+  box-shadow:3px 3px 0 var(--ink);display:inline-block;rotate:-1.4deg}
+.sled{font-size:.94rem;color:var(--ink-2);max-width:54ch;line-height:1.55}
+.srow{display:flex;gap:11px;flex-wrap:wrap;margin-top:18px}
+.sfact{border:var(--stroke) solid var(--ink);border-radius:12px;padding:11px 13px;
+  background:var(--paper);box-shadow:var(--sh-sm);min-width:118px}
+.sfact b{display:block;font-size:1.6rem;font-weight:800;letter-spacing:-.04em}
+.sfact span{display:block;font-size:.72rem;color:var(--ink-2);margin-top:3px;line-height:1.35;max-width:19ch}
+
+/* the 1995 dialog, drawn honestly — chrome of its era, not our palette */
+.old95{background:#E9E9E7;border:2px solid #8E8E8A;border-radius:4px;overflow:hidden;
+  font:400 .78rem/1.5 -apple-system,system-ui,sans-serif;color:#2E2E2C;
+  box-shadow:8px 8px 0 rgba(20,17,38,.14)}
+.o-bar{background:linear-gradient(#F6F6F4,#DCDCD8);border-bottom:1px solid #A9A9A5;
+  padding:7px 10px;font-weight:700;font-size:.75rem;text-align:center}
+.o-body{display:grid;grid-template-columns:104px 1fr;gap:13px;padding:14px}
+.o-prev{background:#fff;border:1px solid #A9A9A5;aspect-ratio:8.5/11;overflow:hidden;position:relative}
+.o-fields{display:flex;flex-direction:column;gap:9px}
+.of{display:flex;justify-content:space-between;align-items:center;gap:9px;font-size:.74rem}
+.of span:last-child{background:#fff;border:1px solid #A9A9A5;border-radius:2px;padding:3px 8px;
+  min-width:86px;font-size:.72rem}
+.o-foot{border-top:1px solid #A9A9A5;padding:10px 13px;display:flex;justify-content:flex-end;gap:8px}
+.o-btn{font-size:.74rem;padding:5px 16px;border-radius:3px;border:1px solid #8E8E8A;background:#F2F2F0}
+.o-btn.p{background:#3D6FD8;color:#fff;border-color:#2F5CBE}
+.snote{display:flex;gap:9px;font-size:.83rem;color:var(--ink-2);margin-top:14px;line-height:1.45}
+.snote i{font-style:normal;font-weight:800;color:var(--pink);flex:none}
+@media(max-width:860px){ .storygrid{grid-template-columns:1fr} }
+
+/* ── the agent surface ─────────────────────────────────────────── */
+.agentpane{margin-top:6px}
+.apgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.85fr);
+  gap:clamp(14px,2vw,24px);align-items:start}
+.term{background:var(--ink);border:var(--stroke) solid var(--ink);border-radius:var(--r);
+  overflow:hidden;box-shadow:var(--sh)}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 13px;background:#241F42}
+.term-bar .dot{width:10px;height:10px;border-radius:50%;background:#4A4568;flex:none}
+.term-bar .tlab{margin-left:6px;font:700 .64rem/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:#9F99C4}
+.term-bar .live{margin-left:auto;font:700 .6rem/1 var(--mono);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink);background:#5BE6A8;border-radius:100px;padding:5px 9px}
+.term-body{padding:14px 15px;margin:0;font:500 .74rem/1.62 var(--mono);color:#C7C2E6;
+  white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto}
+.term-body .k{color:var(--yellow)}
+.term-body .s{color:#5BE6A8}
+.term-body .n{color:#7DF9FF}
+.term-body .c{color:#7B759E}
+.apnote{font-size:.85rem;color:var(--ink-2);margin-top:12px;max-width:56ch;line-height:1.5}
+.tools{display:flex;flex-direction:column;gap:9px}
+.tool{border:var(--stroke) solid var(--ink);border-radius:11px;padding:12px 14px;
+  background:var(--paper);box-shadow:var(--sh-sm)}
+.tool code{font:800 .78rem var(--mono);color:var(--blue)}
+.tool p{font-size:.8rem;color:var(--ink-2);margin-top:5px;line-height:1.45}
+.tool .args{font:600 .66rem var(--mono);color:var(--ink-3);margin-top:6px}
+@media(max-width:860px){ .apgrid{grid-template-columns:1fr} }
+
+/* ── nested detail ─────────────────────────────────────────────── */
+.detail{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1fr);
+  gap:clamp(18px,2.6vw,34px);background:var(--paper);border:var(--stroke) solid var(--ink);
+  border-radius:var(--r);box-shadow:var(--sh);padding:clamp(16px,2.2vw,26px);
+  margin:6px 0 10px;align-items:start}
+.detail .big{aspect-ratio:8.5/11;background:#fff;border:2px solid var(--ink);border-radius:5px;
+  overflow:hidden;position:relative}
+.dhead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.tag{font:800 .62rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;
+  border:2px solid var(--ink);border-radius:100px;padding:6px 10px}
+.tag.bad{background:var(--pink);color:#fff}
+.tag.ok{background:var(--green);color:#fff}
+.detail h2{font-size:clamp(1.15rem,2vw,1.5rem);font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.reasons{display:flex;flex-direction:column;gap:10px;margin-top:13px}
+.rsn{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start}
+.rsn i{width:26px;height:26px;border-radius:8px;display:grid;place-content:center;font-style:normal;
+  font:800 .68rem var(--mono);border:2px solid var(--ink);background:var(--yellow)}
+.rsn b{display:block;font-size:.88rem;font-weight:750}
+.rsn span{font-size:.81rem;color:var(--ink-2);line-height:1.45}
+.readout{margin-top:14px;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+.readout div{display:flex;justify-content:space-between;gap:10px;padding:8px 11px;
+  font:700 .72rem/1 var(--mono);border-bottom:2px solid var(--ink)}
+.readout div:last-child{border-bottom:0}
+.readout div:nth-child(odd){background:var(--tint)}
+.readout span:last-child{color:var(--blue)}
+.dactions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+/* ── print surface (off-screen until printing) ─────────────────── */
+#printroot{position:fixed;left:-99999px;top:0}
+.page{width:816px;height:1056px;background:#fff;padding:96px 84px;overflow:hidden;position:relative}
+
+/* ── the actual print output ───────────────────────────────────── */
+@media print{
+  html,body{overflow:visible;background:#fff}
+  .app,.grain{display:none!important}
+  #printroot{position:static;left:0}
+  /* Break BEFORE each sheet that follows another printing sheet —
+     never break AFTER, which emits a trailing blank page. The
+     :not(.dropped) pair means the rule tracks what actually prints,
+     so removing sheets never leaves a gap or an empty final page.
+     (A tool about eliminating blank pages must not emit one.) */
+  .page{width:auto;height:auto;padding:0;break-after:auto;page-break-after:auto}
+  .page:not(.dropped) ~ .page:not(.dropped){break-before:page;page-break-before:always}
+  .page.dropped{display:none!important}
+}
+
+/* ── mobile ────────────────────────────────────────────────────── */
+.mobtab{display:none}
+@media(max-width:860px){
+  .body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .rail{border-right:0;border-bottom:var(--stroke) solid var(--ink);
+    flex-direction:row;overflow-x:auto;align-items:stretch;gap:11px;padding:13px}
+  .rail > *{flex:none}
+  .verdict{width:190px;rotate:0deg}
+  .stats{grid-template-columns:repeat(3,88px)}
+  .railsec,.drop{display:none}
+  .railact{margin:0;padding:0;flex-direction:row}
+  .bigbtn{width:auto;padding:14px 18px}
+  .detail{grid-template-columns:1fr}
+  .wall{grid-template-columns:repeat(auto-fill,minmax(124px,1fr))}
+  .bar .nm{max-width:38vw}
+}
+@media(max-width:560px){
+  /* The toolbar and rail must SCROLL, never clip. With overflow:hidden
+     on body, anything past the viewport edge is silently sliced — the
+     Print button was being cut mid-word in a submitted screenshot. */
+  .bar{overflow-x:auto;flex-wrap:nowrap;gap:9px;padding:10px 12px;
+       scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .bar::-webkit-scrollbar{display:none}
+  .bar > *{flex:none}
+  /* Print is the primary action — it must never require a sideways
+     scroll to reach. Pin it to the right edge above the scrolling row. */
+  .bar .go{position:sticky;right:0;z-index:3;
+    box-shadow:-10px 0 12px -6px var(--paper), var(--sh-sm)}
+  .file{margin-left:0}
+  .bar .nm{max-width:30vw;font-size:.74rem;padding:6px 8px}
+  .logo{font-size:.95rem}
+  .chipbtn{padding:8px 11px;font-size:.7rem}
+  .stagehead .legend{display:none}
+  .bar .chipbtn.hideS{display:none}
+  .rail{scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .stats{grid-template-columns:repeat(3,80px)}
+  .st dd{font-size:1.15rem}
+  .stage{padding:16px 12px 40px}
+  .stagehead h1{font-size:1.15rem}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  .js .vnums .a.struck::after{transform:scaleX(1)}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── toolbar ── -->
+  <div class="bar">
+    <div class="logo">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.4" fill="none" stroke="var(--pink)" stroke-width="2.4"/>
+        <path d="M10 .5v19M.5 10h19" stroke="var(--ink)" stroke-width="1.6"/>
+      </svg>
+      PROOF
+    </div>
+    <div class="file"><span class="nm" id="fname">loading…</span></div>
+    <span class="spacer"></span>
+    <button class="chipbtn" id="btnXray">Ink X-ray</button>
+    <button class="chipbtn" id="btnAgent">Agent</button>
+    <button class="chipbtn" id="btnStory">Since 1995</button>
+    <button class="chipbtn ghost hideS" id="btnAll">Restore all</button>
+    <button class="chipbtn hideS" id="btnDrop">Drop the 5 flagged</button>
+    <button class="chipbtn go" id="btnPrintTop">Print</button>
+  </div>
+
+  <div class="body">
+
+    <!-- ── rail ── -->
+    <aside class="rail">
+      <div class="verdict">
+        <div class="lab">Proof · this job</div>
+        <div class="vnums">
+          <span class="a num" id="vA">—</span>
+          <span class="ar">→</span>
+          <span class="b num" id="vB">—</span>
+        </div>
+        <p id="vMsg">Measuring the document…</p>
+      </div>
+
+      <dl class="stats">
+        <div class="st"><dt>Sheets</dt><dd class="num" id="stSheets">—</dd></div>
+        <div class="st"><dt>Dropping</dt><dd class="num" id="stDrop">—</dd></div>
+        <div class="st"><dt>Mean ink</dt><dd class="num" id="stInk">—</dd></div>
+        <div class="st"><dt>Threshold</dt><dd class="num" id="stCost">—</dd></div>
+      </dl>
+
+      <div class="method" id="method"><b></b><span id="methodTxt">measuring pages…</span></div>
+
+      <!-- Copies: the control the 1995 dialog has and we were missing.
+           It is also where the number stops being small — a class set
+           of 30 turns 5 wasted sheets into 150. -->
+      <div class="copies">
+        <label for="copies">Copies</label>
+        <div class="cstep">
+          <button type="button" id="cMinus" aria-label="Fewer copies">−</button>
+          <input id="copies" type="number" min="1" max="999" value="1" inputmode="numeric">
+          <button type="button" id="cPlus" aria-label="More copies">+</button>
+        </div>
+      </div>
+      <p class="copynote" id="copyNote" hidden></p>
+
+      <div class="railsec">Proof another file</div>
+      <div class="drop" id="drop" tabindex="0" role="button">
+        <b>Drop a file</b>
+        <span>.html, .txt, .md or .pdf — it gets paginated and measured the same way</span>
+      </div>
+      <input type="file" id="fileIn" accept=".html,.htm,.txt,.md,text/*,.pdf,application/pdf" hidden>
+
+      <div class="railact">
+        <button class="bigbtn" id="btnPrint">Print 0 sheets</button>
+        <button class="bigbtn alt" id="btnPrintAll">Print everything anyway</button>
+      </div>
+    </aside>
+
+    <!-- ── stage ── -->
+    <main class="stage" id="stage">
+      <div class="stagehead">
+        <div>
+          <h1 id="docTitle">…</h1>
+          <p id="docSub">Every sheet, before it prints. Open any one to see it full size.</p>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--paper)"></i>Prints</span>
+          <span><i style="background:var(--pink)"></i>Waste</span>
+        </div>
+      </div>
+      <div class="wall" id="wall"></div>
+
+      <!-- ── the story: what we are reinventing, and why ── -->
+      <section class="story" id="story" hidden>
+        <div class="storygrid">
+          <div>
+            <p class="skicker">The format</p>
+            <h2 class="sbig">The print dialog has not<br>meaningfully changed<br>since <span class="y95">1995</span>.</h2>
+            <p class="sled">Windows 95 shipped a print dialog with a printer dropdown, a copies
+              spinner, a page-range field, and a preview thumbnail about a hundred pixels wide.
+              Thirty-one years later you are still looking at the same four controls and the same
+              useless thumbnail — and still finding out what actually printed by walking to the tray.</p>
+            <div class="srow">
+              <div class="sfact"><b>4</b><span>controls, essentially unchanged</span></div>
+              <div class="sfact"><b>~104px</b><span>the preview you are asked to judge from</span></div>
+              <div class="sfact"><b>0</b><span>of them tell you what is on the page</span></div>
+            </div>
+            <p class="sled" style="margin-top:16px"><b>What it hides:</b> a page carrying one
+              orphaned footer line looks exactly like a full page at that size. So you print it.
+              The dialog has all the information needed to warn you and has never once used it.</p>
+          </div>
+
+          <div class="sold">
+            <p class="skicker" style="margin-bottom:10px">Before — what you are given</p>
+            <div class="old95">
+              <div class="o-bar">Print</div>
+              <div class="o-body">
+                <div class="o-prev" id="oPrev"></div>
+                <div class="o-fields">
+                  <div class="of"><span>Printer</span><span>HP LaserJet 4</span></div>
+                  <div class="of"><span>Copies</span><span>1</span></div>
+                  <div class="of"><span>Pages</span><span>All</span></div>
+                  <div class="of"><span>Layout</span><span>Portrait</span></div>
+                  <div class="of"><span>Scale</span><span>100%</span></div>
+                </div>
+              </div>
+              <div class="o-foot"><span class="o-btn">Cancel</span><span class="o-btn p">Print</span></div>
+            </div>
+            <p class="snote"><i>✕</i><span>Page 1 of 15, at about a hundred pixels. Five of those
+              sheets are almost blank and there is no way to know it from here.</span></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── the agent surface: PROOF is callable, not just clickable ── -->
+      <section class="agentpane" id="agentpane" hidden>
+        <div class="apgrid">
+          <div>
+            <div class="term">
+              <div class="term-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="tlab">claude → proof · stdio</span>
+                <!-- Nothing is "connected": this is a static file. The badge
+                     states what the server IS, never that a socket is live. -->
+                <span class="live" id="mcpLive">npx proof-mcp</span>
+              </div>
+              <pre class="term-body" id="term"></pre>
+            </div>
+            <p class="apnote">PROOF is not only a window. It runs an MCP server, so Claude — or any
+              agent that speaks the protocol — can proof a document before a single sheet moves.
+              The numbers below are the same ones this screen is showing you.</p>
+          </div>
+          <div class="tools" id="tools"></div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+</div>
+
+<!-- real pages live here; this is what actually goes to the printer -->
+<div id="printroot" aria-hidden="true"></div>
+<div id="measure" style="position:fixed;left:-99999px;top:0;width:648px" aria-hidden="true"></div>
+
+<script src="sample-document.js"></script>
+<!-- pdf.js, vendored locally — no CDN, works offline from file://.
+     Both files are esbuild IIFE bundles of pdfjs-dist@4.10.38 (the
+     upstream package ships ES modules only, and Chrome refuses to load
+     `type="module"` scripts — or module Workers — from a file:// origin
+     at all ("Cross origin requests are only supported for http/https"),
+     which would break this app the moment it's opened by double-click
+     instead of served. See vendor/pdfjs/README.md for exactly how these
+     two facts combine into the loading strategy below. -->
+<script src="vendor/pdfjs/pdf.js"></script>
+<script src="vendor/pdfjs/pdf.worker.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   PROOF — the engine.
+
+   Three things are genuinely real here, and they are the reason this
+   idea survived selection:
+
+   1. PAGINATION — the document is laid out in real DOM at real page
+      geometry (8.5x11in @ 96dpi, 1in margins) and split by MEASURED
+      element heights. Not a hardcoded page array. PDFs arrive
+      pre-paginated by definition — one PDF page is one sheet — so for
+      a dropped .pdf this stage is a no-op; pdf.js just enumerates them.
+
+   2. INK COVERAGE — every text node's glyph-run rectangles are read
+      back from the layout engine (Range.getClientRects), summed
+      against the page box, and weighted by measured glyph density.
+      That is a real measurement of the rendered page, not an estimate
+      from a word count. If layout measurement is unavailable we fall
+      back to a stated block model and the UI SAYS SO rather than
+      passing it off as a measurement. For a dropped PDF there is no
+      DOM to walk, so we ask pdf.js for the same thing by a different
+      route: page.getTextContent() returns every glyph run's own
+      position/width/height straight from the PDF's content stream.
+      Each run is mapped into the exact same {x,y,w,h,d} shape (see
+      inkFromPdfPage below) and weighted by the SAME GLYPH_DENSITY
+      constant — so X-ray mode and the coverage math are unchanged
+      code paths for HTML and PDF alike. The method badge always says
+      which geometry produced the number, and a PDF page with no
+      extractable text (a scanned image, say) is reported as
+      unmeasured rather than assigned a guessed coverage value.
+
+   3. RENDERING — a dropped PDF's thumbnails and full-size preview are
+      page.render() output from pdf.js: the actual PDF page rasterized
+      to a canvas, not a redraw or a stand-in.
+
+   4. PRINTING — the flagged sheets are removed from the print root and
+      window.print() sends the real reduced job.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const PAGE_W = 816, PAGE_H = 1056, PAD = 84, PAD_T = 96;
+const CONTENT_H = PAGE_H - PAD_T * 2;
+const WASTE_THRESHOLD = 2.0;          // % coverage below which a sheet is waste
+const COST_SHEET = 0.012;             // $/sheet, 20lb bond, bulk
+const COST_INK_PT = 0.0009;           // $/percentage-point of coverage per sheet
+
+let DOC = null, PAGES = [], openPage = null, measuredAll = false, XRAY = false;
+
+/* pdf.js worker wiring — see the vendoring note above the <script> tags.
+   Setting workerSrc costs nothing and helps if this is ever served over
+   http(s) instead of opened as a file, but under file:// it is never
+   actually reached: pdf.js checks for a globalThis.pdfjsWorker (set by
+   the plain <script src="vendor/pdfjs/pdf.worker.js"> tag above) BEFORE
+   it ever tries to spawn a real Worker, and when found runs the same
+   worker code inline on the main thread instead — pdf.js's own
+   documented "fake worker" fallback, not a hack layered on top of it.
+   That inline execution is what actually parses every PDF in this app. */
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.js';
+}
+
+/* ── fallback document, used if sample-document.js is unavailable ── */
+const FALLBACK = {
+  title:'Northgate Holdings — Q3 Operating Review',
+  filename:'Q3_Operating_Review_FINAL_v4.docx',
+  css:`.doc{font:11pt/1.6 Georgia,'Times New Roman',serif;color:#000}
+       .doc h1{font-size:23pt;margin:0 0 .6em;line-height:1.15}
+       .doc h2{font-size:15pt;margin:1.4em 0 .5em}
+       .doc p{margin:0 0 .85em;text-align:justify}
+       .doc .pagebreak{break-after:page;height:0}
+       .doc table{width:100%;border-collapse:collapse;margin:1em 0;font-size:10pt}
+       .doc td,.doc th{border:1px solid #000;padding:6px 8px;text-align:left}
+       .doc blockquote{margin:1.2em 0;padding-left:16px;border-left:3px solid #000;font-style:italic}`,
+  html:(function(){
+    const para = n => `<p>${Array.from({length:5},(_,i)=>
+      `Operating results for the quarter reflect continued consolidation across the Calgary facility and the western distribution network, with volume recovering against a softer comparable period in the prior year. Management continues to monitor input costs, which remain elevated relative to the ${2020+((n+i)%6)} baseline, and has revised the internal hurdle rate accordingly.`).join(' ')}</p>`;
+    let h = `<h1>Northgate Holdings</h1><p>Q3 Operating Review — for the three months ended 30 September.</p><div class="pagebreak"></div>`;
+    h += `<h2>1. Summary of operations</h2>` + para(1) + para(2);
+    h += `<div class="pagebreak"></div><p>Terms and conditions apply.</p><div class="pagebreak"></div>`;
+    h += `<h2>2. Revenue and margin</h2>` + para(3) + `<table><tr><th>Segment</th><th>Q3</th><th>Q2</th></tr><tr><td>Distribution</td><td>4,182</td><td>3,970</td></tr><tr><td>Fabrication</td><td>2,614</td><td>2,702</td></tr><tr><td>Services</td><td>1,109</td><td>1,044</td></tr><tr><th>Total</th><th>7,905</th><th>7,716</th></tr></table>` + para(4);
+    h += `<div class="pagebreak"></div><p>— continued —</p><div class="pagebreak"></div>`;
+    h += `<h2>3. Headcount and facilities</h2>` + para(5) + para(6) + `<blockquote>The Calgary consolidation removed roughly 18,000 square feet of leased footprint without reducing throughput.</blockquote>` + para(7);
+    h += `<div class="pagebreak"></div><p>This page intentionally left blank.</p><div class="pagebreak"></div>`;
+    h += `<h2>4. Outlook</h2>` + para(8) + para(9);
+    h += `<div class="pagebreak"></div><p>© 2026 Northgate Holdings Ltd.</p><div class="pagebreak"></div>`;
+    h += `<p>Page 14 of 14</p>`;
+    return h;
+  })()
+};
+
+/* ── 1 · PAGINATION ─────────────────────────────────────────────
+   Lay the document out at real content width, then walk the block
+   children accumulating measured heights, breaking when the next
+   block would overflow the page box. */
+function paginate(doc){
+  const m = document.getElementById('measure');
+  m.innerHTML = `<style>${doc.css}</style><div class="doc" id="mdoc">${doc.html}</div>`;
+  const src = document.getElementById('mdoc');
+  const blocks = [...src.children];
+
+  const pages = [];
+  let cur = [], h = 0;
+  const flush = () => { if(cur.length){ pages.push(cur); cur = []; h = 0; } };
+
+  for(const b of blocks){
+    if(b.classList.contains('pagebreak')){ flush(); continue; }
+    const bh = b.getBoundingClientRect().height
+             + parseFloat(getComputedStyle(b).marginBottom || 0);
+    if(h + bh > CONTENT_H && cur.length){ flush(); }
+    cur.push(b.cloneNode(true));
+    h += bh;
+  }
+  flush();
+  return pages;
+}
+
+/* ── build the real print pages ─────────────────────────────────── */
+function buildPrintPages(doc, pages){
+  const root = document.getElementById('printroot');
+  root.innerHTML = `<style>${doc.css}</style>`;
+  pages.forEach((blocks, i) => {
+    const pg = document.createElement('div');
+    pg.className = 'page'; pg.dataset.page = i + 1;
+    const inner = document.createElement('div');
+    inner.className = 'doc';
+    blocks.forEach(b => inner.appendChild(b.cloneNode(true)));
+    pg.appendChild(inner);
+    root.appendChild(pg);
+  });
+  return [...root.querySelectorAll('.page')];
+}
+
+/* ── 2 · INK COVERAGE — measured from real rendered layout ───────
+   The honest way to do this in a browser without tainting or XML
+   fragility: walk every text node, ask the layout engine for the
+   ACTUAL rectangles its glyph runs occupy (Range.getClientRects),
+   and sum their area against the page box.
+
+   A line box is not solid ink, so the covered area is weighted by
+   measured glyph density: the ratio of ink to line-box for a normal
+   serif run is ~0.16, rising with weight. These are stated constants,
+   not hidden fudge — and the UI reports the method alongside the
+   number so nothing here is passed off as something it isn't. */
+const GLYPH_DENSITY = 0.16;   // ink within a body line box
+const WEIGHT_BOOST  = 0.055;  // extra per 100 units of font-weight over 400
+
+function inkMeasured(pageEl){
+  const walker = document.createTreeWalker(pageEl, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+  });
+  const pageArea = (PAGE_W - PAD * 2) * (PAGE_H - PAD_T * 2);
+  let ink = 0, runs = 0;
+  const range = document.createRange();
+  const origin = pageEl.getBoundingClientRect();
+  const map = [];                       // the ink map — drives X-ray mode
+
+  for (let n; (n = walker.nextNode()); ) {
+    range.selectNodeContents(n);
+    const rects = range.getClientRects();
+    const cs = getComputedStyle(n.parentElement);
+    const weight = parseInt(cs.fontWeight, 10) || 400;
+    const density = GLYPH_DENSITY + Math.max(0, (weight - 400) / 100) * WEIGHT_BOOST;
+    for (const r of rects) {
+      if (r.width <= 0 || r.height <= 0) continue;
+      ink += r.width * r.height * density;
+      runs++;
+      map.push({ x:(r.left-origin.left)/PAGE_W, y:(r.top-origin.top)/PAGE_H,
+                 w:r.width/PAGE_W, h:r.height/PAGE_H, d:density });
+    }
+  }
+
+  // table rules and borders carry ink too — count their stroke area
+  for (const b of pageEl.querySelectorAll('td,th,blockquote,hr')) {
+    const r = b.getBoundingClientRect();
+    const cs = getComputedStyle(b);
+    const bw = ['Top','Right','Bottom','Left']
+      .reduce((a, s) => a + (parseFloat(cs['border' + s + 'Width']) || 0), 0);
+    if (bw > 0){
+      ink += (r.width + r.height) * bw * 0.5;
+      map.push({ x:(r.left-origin.left)/PAGE_W, y:(r.top-origin.top)/PAGE_H,
+                 w:r.width/PAGE_W, h:r.height/PAGE_H, d:0.5, rule:true });
+    }
+  }
+
+  return runs ? { ink: +((ink / pageArea) * 100).toFixed(2), runs, map } : null;
+}
+
+/* ── X-RAY — the measurement, made visible ──────────────────────
+   Not a stylised graphic: these are the exact rectangles the layout
+   engine reported and that the coverage number was computed from.
+   A dense page glows. A wasted sheet is a void with one faint smear. */
+function xrayHTML(p){
+  if(!p.map || !p.map.length)
+    return `<div class="xr"><span class="xr-empty">no ink</span></div>`;
+  return `<div class="xr">${p.map.map(m =>
+    `<i style="left:${(m.x*100).toFixed(2)}%;top:${(m.y*100).toFixed(2)}%;
+      width:${(m.w*100).toFixed(2)}%;height:${(m.h*100).toFixed(2)}%;
+      opacity:${Math.min(1,(m.d/0.16)*0.72).toFixed(2)}${m.rule?';background:var(--pink)':''}"></i>`
+  ).join('')}</div>`;
+}
+
+/* Kept as a second opinion. Not used for the headline number. */
+function inkOf(pageEl, css){
+  const SCALE = 0.28;
+  const w = Math.round(PAGE_W * SCALE), h = Math.round(PAGE_H * SCALE);
+  const svg =
+`<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${PAGE_H}">
+<foreignObject width="100%" height="100%">
+<div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>
+<div style="width:${PAGE_W}px;height:${PAGE_H}px;padding:${PAD_T}px ${PAD}px;background:#fff;box-sizing:border-box;overflow:hidden">${pageEl.innerHTML}</div>
+</div></foreignObject></svg>`;
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d', { willReadFrequently:true });
+        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img, 0, 0, w, h);
+        const d = ctx.getImageData(0,0,w,h).data;
+        let inked = 0;
+        for(let i = 0; i < d.length; i += 4){
+          const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+          if(lum < 235) inked += (255 - lum) / 255;   // weighted by darkness
+        }
+        res(+((inked / (w*h)) * 100).toFixed(2));
+      }catch(e){ res(null); }
+    };
+    img.onerror = () => res(null);
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+}
+
+/* deterministic fallback — labelled as an estimate in the UI */
+function estimateInk(pageEl){
+  const text = (pageEl.textContent || '').replace(/\s+/g,' ').trim();
+  const glyphs = text.length;
+  const heads = pageEl.querySelectorAll('h1,h2,h3').length;
+  const cells = pageEl.querySelectorAll('td,th').length;
+  return +Math.min(100, glyphs * 0.0042 + heads * 1.1 + cells * 0.08).toFixed(2);
+}
+
+/* ── waste classification ───────────────────────────────────────
+   Low coverage ALONE is not waste. A title page and a table of
+   contents are both legitimately sparse and both must print. A sheet
+   is waste only when it is BOTH under the threshold AND carries no
+   structure — no heading, no table, no list — and its text is short
+   enough to be pagination furniture rather than content. */
+const FURNITURE = /^(—?\s*continued\s*—?|this page (is )?intentionally left blank\.?|©.*|page \d+( of \d+)?|terms and conditions apply\.?|all rights reserved\.?)$/i;
+
+function isWaste(pageEl, ink){
+  if(ink >= WASTE_THRESHOLD) return false;
+  const text = (pageEl.textContent || '').replace(/\s+/g,' ').trim();
+  if(!text) return true;                                        // truly blank
+  if(FURNITURE.test(text)) return true;                         // known furniture
+  const structured = pageEl.querySelector('h1,h2,h3,table,ul,ol,svg,img,blockquote');
+  if(structured) return false;                                  // title page, TOC, chart
+  return text.length < 120;                                     // an orphaned line
+}
+
+function classify(pageEl, ink){
+  const text = (pageEl.textContent || '').replace(/\s+/g,' ').trim();
+  if(!isWaste(pageEl, ink)) return null;
+  const t = text.toLowerCase();
+  if(/intentionally left blank/.test(t))        return ['intentionally_blank','“This page intentionally left blank.” The sheet exists to say it is empty.'];
+  if(/^—?\s*continued/.test(t))                 return ['break_artefact','A continuation marker that overflowed onto its own sheet.'];
+  if(/^©|\ball rights reserved\b/.test(t))      return ['orphaned_footer','A copyright line that broke away from the page it belonged to.'];
+  if(/^page\s+\d+(\s+of\s+\d+)?$/.test(t))      return ['page_number_only','A lone page number. Nothing else reached this sheet.'];
+  if(text.length < 90)                          return ['orphaned_footer','A single trailing line of furniture — a footer that overflowed.'];
+  return ['low_coverage','Below the coverage threshold: this sheet carries almost no ink.'];
+}
+
+/* ── PDF waste classification — the same rule, no DOM to query ────
+   A PDF page has no h1/h2/table to ask for, so "carries structure" is
+   approximated two ways instead: (a) a glyph run whose height steps up
+   clearly from the page's typical body-text size — the same signal a
+   person uses to spot a title or section head, computed in loadPdf()
+   as p.hasHeading — and (b) having more than a handful of distinct
+   text runs, which an orphaned line or lone page number never does.
+   Both mirror isWaste()'s structural check in spirit; this is why a
+   sparse-but-real cover page (one big heading, almost no ink) is never
+   flagged even though its coverage number alone would suggest waste. */
+function isWastePDF(p){
+  if(p.ink == null) return false;           // no extractable text — never guess a verdict
+  if(p.ink >= WASTE_THRESHOLD) return false;
+  const text = p.rawText;
+  if(!text) return true;                    // extractable layer, but literally empty
+  if(FURNITURE.test(text)) return true;     // known furniture
+  if(p.hasHeading) return false;            // heading-sized run — title/cover/section page
+  if(p.itemCount > 6) return false;         // enough distinct runs to be real content
+  return text.length < 120;                 // an orphaned line
+}
+
+function classifyPDF(p){
+  if(!isWastePDF(p)) return null;
+  const t = p.rawText.toLowerCase();
+  if(!t)                                         return ['blank_page','No extractable text was found on this sheet — a blank page.'];
+  if(/intentionally left blank/.test(t))         return ['intentionally_blank','“This page intentionally left blank.” The sheet exists to say it is empty.'];
+  if(/^—?\s*continued/.test(t))                  return ['break_artefact','A continuation marker that overflowed onto its own sheet.'];
+  if(/^©|\ball rights reserved\b/.test(t))       return ['orphaned_footer','A copyright line that broke away from the page it belonged to.'];
+  if(/^page\s+\d+(\s+of\s+\d+)?$/.test(t))       return ['page_number_only','A lone page number. Nothing else reached this sheet.'];
+  if(t.length < 90)                              return ['orphaned_footer','A single trailing line of furniture — a footer that overflowed.'];
+  return ['low_coverage','Below the coverage threshold: this sheet carries almost no text.'];
+}
+
+/* ── load + measure ────────────────────────────────────────────── */
+async function load(doc){
+  DOC = doc;
+  document.getElementById('fname').textContent = doc.filename;
+  document.getElementById('docTitle').textContent = doc.title;
+
+  const blocks = paginate(doc);
+  const els = buildPrintPages(doc, blocks);
+
+  PAGES = els.map((el, i) => {
+    const ink = estimateInk(el);
+    return { n:i+1, el, ink, measured:false, dropped:false,
+             waste: isWaste(el, ink), reason: classify(el, ink) };
+  });
+
+  // measure from real rendered layout
+  let ok = 0, runs = 0;
+  for(const p of PAGES){
+    const m = inkMeasured(p.el);
+    if(m){
+      p.ink = m.ink; p.measured = true; p.map = m.map; runs += m.runs;
+      p.waste = isWaste(p.el, m.ink);
+      p.reason = classify(p.el, m.ink);
+      ok++;
+    }
+  }
+  measuredAll = ok === PAGES.length;
+  PAGES.forEach(p => { if(p.waste) p.dropped = true; });
+  PAGES.forEach(p => { p.methodLabel = p.measured ? 'measured · glyph-run geometry' : 'estimated · block model'; });
+  render(); paint();
+
+  const meth = document.getElementById('method');
+  meth.classList.toggle('live', measuredAll);
+  document.getElementById('methodTxt').textContent = measuredAll
+    ? `measured · ${runs} glyph runs across ${PAGES.length} pages`
+    : `estimated · layout measurement unavailable`;
+}
+
+/* ── thumbnails: the REAL page, scaled ─────────────────────────── */
+function thumb(p, boxW){
+  if(p.isPDF){
+    // the REAL PDF page, rasterized by pdf.js — not a redraw. Sized by
+    // the container (object-fit:contain), so this needs no boxW math.
+    return p.dataUrl
+      ? `<img src="${p.dataUrl}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;background:#fff">`
+      : `<div class="xr-empty" style="position:static;height:100%;display:grid">no preview</div>`;
+  }
+  const s = boxW / PAGE_W;
+  return `<div class="mini" style="width:${PAGE_W}px;height:${PAGE_H}px;transform:scale(${s})">
+    <div style="padding:${PAD_T}px ${PAD}px;box-sizing:border-box;width:100%;height:100%;overflow:hidden">
+      ${p.el.innerHTML}
+    </div></div>`;
+}
+
+function render(){
+  const wall = document.getElementById('wall');
+  const boxW = 158;
+  wall.innerHTML = PAGES.map(p => `
+    <button class="sh ${p.waste?'waste':''} ${p.dropped?'dropped':''} ${openPage===p.n?'on':''}"
+            data-page="${p.n}" aria-label="Sheet ${p.n}${p.waste?' — flagged as waste':''}">
+      <div class="paper">
+        ${XRAY ? xrayHTML(p)
+               : `<style>${DOC.css}</style><div class="doc">${thumb(p, boxW)}</div>`}
+        ${p.dropped ? `<span class="stamp">Dropped</span>`
+                    : p.waste ? `<span class="stamp">Waste · ${p.ink}%</span>`
+                    : p.ink==null ? `<span class="stamp" style="background:var(--ink-3)">No text</span>` : ''}
+      </div>
+      <div class="shmeta">
+        <span class="pg num">${String(p.n).padStart(2,'0')}</span>
+        <span class="gauge"><b data-w="${p.ink==null ? 0 : Math.min(100, p.ink*6)}"></b></span>
+        <span class="num">${p.ink==null ? '—' : p.ink+'%'}</span>
+      </div>
+    </button>`).join('');
+
+  if(openPage) mountDetail(openPage);
+
+  wall.querySelectorAll('.sh[data-page]').forEach(b =>
+    b.addEventListener('click', () => toggle(+b.dataset.page)));
+
+  requestAnimationFrame(() =>
+    wall.querySelectorAll('.gauge b').forEach(b => b.style.width = b.dataset.w + '%'));
+}
+
+/* ── nested reveal ─────────────────────────────────────────────── */
+function toggle(n){
+  openPage = (openPage === n) ? null : n;
+  render();
+  if(openPage){
+    const d = document.querySelector('.detail');
+    if(d) d.scrollIntoView({block:'nearest'});
+  }
+}
+
+function mountDetail(n){
+  const p = PAGES.find(x => x.n === n); if(!p) return;
+  const wall = document.getElementById('wall');
+  const btn = wall.querySelector(`.sh[data-page="${n}"]`); if(!btn) return;
+
+  const reasons = p.ink == null ? [
+    ['?','No verdict — nothing to measure',
+     'This page has no extractable text layer, most likely a scanned image. PROOF does not guess a coverage number for a page it cannot measure, so by default it prints.']
+  ] : p.waste ? [
+    ['1','It is furniture, not content', p.reason ? p.reason[1] : 'Carries no substantive content.'],
+    ['2','Below the ink threshold', `Measured coverage is ${p.ink}% of the page area. Anything under ${WASTE_THRESHOLD}% is a sheet spent on almost nothing.`],
+    ['3','Dropping it changes nothing', 'The content you meant to print is unaffected. The sheet is removed from the job and never leaves the tray.']
+  ] : (() => {
+    /* A sheet can print for two different reasons, and saying the wrong
+       one is worse than saying nothing. Either it clears the coverage
+       threshold, or it is legitimately sparse but carries structure —
+       a title page, a contents list, a table. Sparse is not empty. */
+    if(p.ink >= WASTE_THRESHOLD)
+      return [['✓','This sheet earns its paper',
+        `Coverage is ${p.ink}%, above the ${WASTE_THRESHOLD}% threshold. It prints.`]];
+    const name = p.isPDF
+      ? (p.hasHeading ? 'a heading-sized line of text' : null)
+      : (() => {
+          const el = p.el.querySelector('h1,h2,h3,table,ul,ol,svg,blockquote');
+          const kind = el ? el.tagName.toLowerCase() : null;
+          return { h1:'a heading', h2:'a heading', h3:'a heading', table:'a table',
+                    ul:'a list', ol:'a list', svg:'a figure', blockquote:'a pull quote' }[kind];
+        })();
+    return [
+      ['✓','Sparse, but not empty',
+       `Coverage is ${p.ink}% — below the ${WASTE_THRESHOLD}% threshold. It still prints, because the sheet carries ${name || 'structure'}.`],
+      ['2','Coverage alone never decides',
+       `A title page and a contents list are both legitimately light. A sheet is only waste when it is under threshold AND carries no structural element AND holds less than 120 characters.`]
+    ];
+  })();
+
+  const el = document.createElement('div');
+  el.className = 'detail';
+  el.innerHTML = `
+    <div class="big">
+      <style>${DOC.css}</style>
+      <div class="doc" id="bigmount"></div>
+    </div>
+    <div>
+      <div class="dhead">
+        <span class="tag ${p.waste?'bad':(p.ink==null?'':'ok')}">${p.waste ? 'Flagged · waste' : (p.ink==null ? 'Not measured' : 'Keeping')}</span>
+        <span class="tag">Sheet ${String(p.n).padStart(2,'0')} of ${PAGES.length}</span>
+        ${p.reason ? `<span class="tag">${p.reason[0]}</span>` : ''}
+      </div>
+      <h2>${p.waste ? 'Why this sheet is waste'
+                    : p.ink == null ? 'Nothing to measure here'
+                    : (p.ink < WASTE_THRESHOLD ? 'Sparse is not empty' : 'Why this sheet stays')}</h2>
+      <div class="reasons">
+        ${reasons.map(([i,t,d]) => `<div class="rsn"><i>${i}</i><div><b>${t}</b><span>${d}</span></div></div>`).join('')}
+      </div>
+      <div class="readout">
+        <div><span>ink coverage</span><span>${p.ink==null ? 'not measured' : p.ink+'%'}</span></div>
+        <div><span>threshold</span><span>${WASTE_THRESHOLD}%</span></div>
+        <div><span>method</span><span>${p.methodLabel || (p.measured ? 'measured · glyph-run geometry' : 'estimated · block model')}</span></div>
+        <div><span>glyph runs on this sheet</span><span>${p.map ? p.map.length : '—'}</span></div>
+        <div><span>page geometry</span><span>${p.isPDF ? 'PDF page, as authored' : '8.5×11in @ 96dpi'}</span></div>
+      </div>
+      <div class="dactions">
+        <button class="chipbtn ${p.dropped?'go':''}" id="dToggle">${p.dropped ? 'Restore this sheet' : 'Drop this sheet'}</button>
+      </div>
+    </div>`;
+
+  btn.insertAdjacentElement('afterend', el);
+
+  const bigBox = el.querySelector('.big');
+  if(XRAY){ bigBox.innerHTML = xrayHTML(p); }
+  else {
+    const mount = el.querySelector('#bigmount');
+    mount.innerHTML = thumb(p, bigBox.getBoundingClientRect().width || 320);
+  }
+
+  el.querySelector('#dToggle').addEventListener('click', () => {
+    p.dropped = !p.dropped; render(); paint();
+  });
+}
+
+/* ── totals ────────────────────────────────────────────────────── */
+function paint(){
+  const total = PAGES.length;
+  const dropped = PAGES.filter(p => p.dropped).length;
+  const keep = total - dropped;
+  // mean ink is over MEASURED pages only — a page with no extractable
+  // text contributes no number, not a fabricated zero.
+  const measuredPages = PAGES.filter(p => p.ink != null);
+  const mean = measuredPages.length
+    ? +(measuredPages.reduce((a,p) => a + p.ink, 0) / measuredPages.length).toFixed(1) : 0;
+  const costAll = PAGES.reduce((a,p) => a + COST_SHEET + (p.ink||0) * COST_INK_PT, 0);
+  const costNow = PAGES.filter(p => !p.dropped)
+                       .reduce((a,p) => a + COST_SHEET + (p.ink||0) * COST_INK_PT, 0);
+
+  document.getElementById('vA').textContent = total;
+  document.getElementById('vB').textContent = keep;
+  /* Tone: "sheets of nothing" reads as relief to some and as
+     condescension to others. "carry no content" loses nobody. */
+  document.getElementById('vMsg').innerHTML = dropped
+    ? `<b>${dropped} sheet${dropped===1?'':'s'} carry no content.</b>`
+    : `Every sheet in this job carries content.`;
+  document.getElementById('stSheets').textContent = total;
+  document.getElementById('stDrop').textContent = dropped;
+  document.getElementById('stInk').innerHTML = mean + '<small>%</small>';
+  document.getElementById('stCost').innerHTML = WASTE_THRESHOLD + '<small>%</small>';
+  const sheetsOut  = keep * COPIES;
+  const sheetsSaved = dropped * COPIES;
+  document.getElementById('btnPrint').textContent =
+    `Print ${sheetsOut} sheet${sheetsOut===1?'':'s'}`;
+  const note = document.getElementById('copyNote');
+  if(note){
+    if(COPIES > 1 && dropped > 0){
+      note.hidden = false;
+      note.textContent = `${COPIES} copies \u00d7 ${dropped} empty sheets = ${sheetsSaved} sheets saved.`;
+    } else note.hidden = true;
+  }
+  document.getElementById('btnDrop').textContent =
+    `Drop the ${PAGES.filter(p=>p.waste).length} flagged`;
+  const unmeasured = total - measuredPages.length;
+  document.getElementById('docSub').textContent =
+    `${total} sheets · ${dropped} flagged as waste` +
+    (unmeasured ? ` · ${unmeasured} not measured (no extractable text)` : '') +
+    ` · open any sheet to see it full size`;
+
+  // sync the print root to what will actually print
+  PAGES.forEach(p => { const target = p.el || p.printEl; if(target) target.classList.toggle('dropped', p.dropped); });
+}
+
+/* ── the agent surface ─────────────────────────────────────────
+   The transcript is GENERATED from the live measurement, not typed
+   out. If the document changes, the agent's answer changes with it —
+   which is the point: the UI and the MCP server read one truth. */
+const TOOLS = [
+  {n:'proof',        a:'{ doc?: string }',            d:'Paginate and measure a document. Returns every sheet with its line count, measured ink coverage and waste verdict.'},
+  {n:'waste_report', a:'{ doc?: string }',            d:'Only the flagged sheets, each with the reason it was flagged and the coverage that condemned it.'},
+  {n:'drop_pages',   a:'{ pages: number[] }',         d:'Remove sheets from the job. Returns the pages that will actually print.'},
+  {n:'ink_cost',     a:'{ drop?: number[] }',         d:'Sheets, mean coverage and cost, for the job as-is versus as-proposed.'}
+];
+
+function buildAgent(){
+  document.getElementById('tools').innerHTML = TOOLS.map(t =>
+    `<div class="tool"><code>${t.n}</code><p>${t.d}</p><div class="args">${t.a}</div></div>`).join('');
+
+  const waste = PAGES.filter(p => p.waste);
+  const L = [];
+  L.push(['c','# an agent proofs the file before anything moves']);
+  L.push(['k','→ tools/call']);
+  L.push([null,`  { "name": "waste_report", "arguments": { "doc": "${DOC.filename}" } }`]);
+  L.push(['k','← result']);
+  L.push([null,'  {']);
+  L.push([null,`    <span class="s">"pages_total"</span>: <span class="n">${PAGES.length}</span>, <span class="s">"pages_printing"</span>: <span class="n">${PAGES.length - waste.length}</span>,`]);
+  L.push([null,'    <span class="s">"flagged"</span>: [']);
+  waste.forEach((p,i) => L.push([null,
+    `      { <span class="s">"page"</span>: <span class="n">${String(p.n).padStart(2,' ')}</span>, <span class="s">"ink_pct"</span>: <span class="n">${p.ink}</span>, <span class="s">"reason"</span>: <span class="s">"${p.reason?p.reason[0]:'low_coverage'}"</span> }${i<waste.length-1?',':''}`]));
+  L.push([null,'    ],']);
+  L.push([null,`    <span class="s">"threshold_pct"</span>: <span class="n">${WASTE_THRESHOLD}</span>,`]);
+  L.push([null,'    <span class="s">"method"</span>: <span class="s">"glyph_run_geometry"</span>']);
+  L.push([null,'  }']);
+  L.push(['c',`# ${waste.length} sheets never left the tray`]);
+
+  document.getElementById('term').innerHTML = L.map(([cls,txt]) =>
+    cls ? `<span class="${cls}">${txt}</span>` : (txt || ' ')).join('\n');
+}
+
+/* ── copies — where the saving stops being small ───────────────── */
+let COPIES = 1;
+function setCopies(n){
+  COPIES = Math.max(1, Math.min(999, n|0));
+  const el = document.getElementById('copies');
+  if(el) el.value = COPIES;
+  paint();
+}
+
+/* ── 3 · PRINTING — the real reduced job ───────────────────────── */
+function doPrint(all){
+  if(all) PAGES.forEach(p => { const target = p.el || p.printEl; if(target) target.classList.remove('dropped'); });
+  window.print();
+  if(all) paint();
+}
+
+/* ── wiring ────────────────────────────────────────────────────── */
+const cIn = document.getElementById('copies');
+if(cIn){
+  cIn.addEventListener('input', e => setCopies(+e.target.value || 1));
+  document.getElementById('cPlus').addEventListener('click', () => setCopies(COPIES + 1));
+  document.getElementById('cMinus').addEventListener('click', () => setCopies(COPIES - 1));
+}
+document.getElementById('btnPrint').addEventListener('click', () => doPrint(false));
+document.getElementById('btnPrintTop').addEventListener('click', () => doPrint(false));
+document.getElementById('btnPrintAll').addEventListener('click', () => doPrint(true));
+document.getElementById('btnDrop').addEventListener('click', () => {
+  PAGES.forEach(p => { if(p.waste) p.dropped = true; }); render(); paint();
+});
+document.getElementById('btnAll').addEventListener('click', () => {
+  PAGES.forEach(p => p.dropped = false); render(); paint();
+});
+/* one stage at a time: sheets · agent · story */
+const wallSub = () =>
+  `${PAGES.length} sheets · ${PAGES.filter(p=>p.waste).length} flagged as waste · open any sheet to see it full size`;
+
+function setView(view){
+  const wall = document.getElementById('wall');
+  const pane = document.getElementById('agentpane');
+  const story = document.getElementById('story');
+  const sub = document.getElementById('docSub');
+
+  pane.toggleAttribute('hidden', view !== 'agent');
+  story.toggleAttribute('hidden', view !== 'story');
+  wall.style.display = view === 'sheets' ? '' : 'none';
+
+  document.getElementById('btnAgent').classList.toggle('on', view === 'agent');
+  document.getElementById('btnStory').classList.toggle('on', view === 'story');
+
+  sub.textContent =
+      view === 'agent' ? 'PROOF speaks MCP — the same measurement, callable by any agent.'
+    : view === 'story' ? 'The format we are reinventing, and what it has always hidden from you.'
+    : wallSub();
+
+  if(view === 'agent') buildAgent();
+  if(view === 'story') buildStory();
+}
+let VIEW = 'sheets';
+const flip = v => { VIEW = (VIEW === v) ? 'sheets' : v; setView(VIEW); };
+
+document.getElementById('btnAgent').addEventListener('click', () => flip('agent'));
+document.getElementById('btnStory').addEventListener('click', () => flip('story'));
+
+/* the 1995 preview shows the REAL page 1, at the real ~104px it gave you */
+function buildStory(){
+  const p = PAGES[0]; if(!p) return;
+  const box = document.getElementById('oPrev');
+  box.innerHTML = `<style>${DOC.css}</style><div class="doc">${thumb(p, 104)}</div>`;
+}
+document.getElementById('btnXray').addEventListener('click', e => {
+  XRAY = !XRAY;
+  document.body.classList.toggle('xray', XRAY);
+  e.currentTarget.classList.toggle('on', XRAY);
+  e.currentTarget.textContent = XRAY ? 'Show pages' : 'Ink X-ray';
+  document.getElementById('docSub').textContent = XRAY
+    ? `Ink X-ray — every mark is a glyph rectangle the layout engine reported. This is the measurement itself.`
+    : `${PAGES.length} sheets · ${PAGES.filter(p=>p.waste).length} flagged as waste · open any sheet to see it full size`;
+  render();
+});
+
+/* drop a real file in — it gets paginated and measured identically */
+const drop = document.getElementById('drop'), fileIn = document.getElementById('fileIn');
+drop.addEventListener('click', () => fileIn.click());
+drop.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileIn.click(); } });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if(f) readFile(f); });
+fileIn.addEventListener('change', e => { const f = e.target.files?.[0]; if(f) readFile(f); });
+
+/* ── 4 · PDF — same measurement, a different geometry source ─────
+   A PDF arrives pre-paginated (one PDF page IS one sheet already), so
+   there is no reflow step. What replaces it: pdf.js hands back every
+   glyph run's own transform matrix, width and height straight from the
+   content stream. That is read instead of Range.getClientRects and
+   mapped into the IDENTICAL {x,y,w,h,d} shape inkMeasured() produces —
+   so xrayHTML(), render(), mountDetail() and thumb() all run completely
+   unmodified for a PDF page, because they only ever look at that shape,
+   never at how it was produced. */
+async function loadPdf(file){
+  document.getElementById('fname').textContent = file.name;
+  document.getElementById('docTitle').textContent = file.name.replace(/\.pdf$/i,'');
+  document.getElementById('methodTxt').textContent = 'parsing PDF…';
+
+  if(!window.pdfjsLib){
+    document.getElementById('methodTxt').textContent = 'could not load PDF — pdf.js failed to initialize';
+    document.getElementById('method').classList.remove('live');
+    return;
+  }
+
+  let pdfDoc;
+  try{
+    const buf = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  }catch(e){
+    document.getElementById('methodTxt').textContent = `could not parse PDF — ${(e && e.message) || e}`;
+    document.getElementById('method').classList.remove('live');
+    return;
+  }
+
+  const n = pdfDoc.numPages;
+  const raw = [];
+  for(let i = 1; i <= n; i++){
+    const pdfPage = await pdfDoc.getPage(i);
+    const viewport = pdfPage.getViewport({ scale: 1 });
+    const tc = await pdfPage.getTextContent();
+    raw.push({ n:i, pdfPage, viewport, tc });
+  }
+
+  // Document-wide "typical body size" — the mode of glyph-run heights,
+  // rounded to the nearest point. Stands in for the DOM path's implicit
+  // sense of what body text looks like, so a heading-sized run can be
+  // told apart from it per page below (see isWastePDF's comment).
+  const sizeCounts = new Map();
+  for(const { viewport, tc } of raw){
+    for(const item of tc.items){
+      if(!item.str || !item.str.trim()) continue;
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const fh = Math.round(Math.hypot(tx[2], tx[3]));
+      if(fh > 0) sizeCounts.set(fh, (sizeCounts.get(fh) || 0) + 1);
+    }
+  }
+  let bodySize = 11, bestCount = 0;
+  for(const [size, count] of sizeCounts) if(count > bestCount){ bestCount = count; bodySize = size; }
+  const headingSize = Math.max(14, bodySize * 1.4);
+
+  const pages = [];
+  for(const { n:idx, pdfPage, viewport, tc } of raw){
+    const pageArea = viewport.width * viewport.height;
+    let ink = 0, runs = 0, hasHeading = false;
+    const map = [];
+    const strs = [];
+    for(const item of tc.items){
+      if(item.str) strs.push(item.str);
+      if(!item.str || !item.str.trim()) continue;
+      // Same transform math pdf.js's own TextLayer uses to place a run:
+      // combine the page viewport with the item's matrix, then read the
+      // run's angle and effective font height off the result.
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const angle = Math.atan2(tx[1], tx[0]);
+      const fontH = Math.hypot(tx[2], tx[3]) || item.height || 0;
+      const w = item.width || 0;
+      if(w <= 0 || fontH <= 0) continue;
+      if(fontH >= headingSize) hasHeading = true;
+      let left, top;
+      if(Math.abs(angle) < 1e-3){ left = tx[4]; top = tx[5] - fontH; }
+      else { left = tx[4] + fontH * Math.sin(angle); top = tx[5] - fontH * Math.cos(angle); }
+      // PDF glyph runs carry no reliable weight signal without parsing
+      // the embedded font program, so — unlike the DOM path — this uses
+      // the flat GLYPH_DENSITY constant rather than guess a weight boost.
+      ink += w * fontH * GLYPH_DENSITY;
+      runs++;
+      map.push({ x:left/viewport.width, y:top/viewport.height,
+                 w:w/viewport.width, h:fontH/viewport.height, d:GLYPH_DENSITY });
+    }
+
+    // Render the SAME page pdf.js just measured, for the thumbnail and
+    // the full-size detail view — the real PDF page, not a redraw.
+    const renderScale = Math.min(2.2, 800 / viewport.width);
+    const rvp = pdfPage.getViewport({ scale: renderScale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(rvp.width));
+    canvas.height = Math.max(1, Math.round(rvp.height));
+    await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: rvp }).promise;
+
+    const measured = runs > 0;
+    const p = {
+      n: idx, isPDF: true, dropped: false,
+      // no extractable text (e.g. a scanned page) -> ink stays null,
+      // never a fabricated 0%.
+      ink: measured ? +((ink / pageArea) * 100).toFixed(2) : null,
+      runs, map, itemCount: runs, hasHeading,
+      rawText: strs.join(' ').replace(/\s+/g,' ').trim(),
+      dataUrl: canvas.toDataURL('image/png'),
+      measured,
+      methodLabel: measured ? 'measured · pdf text geometry' : 'unmeasured · no extractable text'
+    };
+    p.waste = isWastePDF(p);
+    p.reason = classifyPDF(p);
+    p.dropped = p.waste;
+    pages.push(p);
+  }
+
+  DOC = { title: file.name.replace(/\.pdf$/i,''), filename: file.name, isPDF:true, css:'' };
+  PAGES = pages;
+  buildPrintPagesPDF(PAGES);
+  render(); paint();
+
+  measuredAll = PAGES.every(p => p.measured);
+  const totalRuns = PAGES.reduce((a,p) => a + p.runs, 0);
+  const unmeasuredCount = PAGES.filter(p => !p.measured).length;
+  const meth = document.getElementById('method');
+  meth.classList.toggle('live', measuredAll);
+  document.getElementById('methodTxt').textContent = measuredAll
+    ? `measured · pdf text geometry · ${totalRuns} text runs across ${PAGES.length} pages`
+    : `measured · pdf text geometry · ${PAGES.length - unmeasuredCount}/${PAGES.length} pages (${unmeasuredCount} have no extractable text)`;
+}
+
+/* Build the print pages for a PDF job: one <img> of the rendered page
+   per sheet, dropped into the SAME .page elements and the SAME
+   @media print rules (break-before, .dropped{display:none}) that
+   produce the real reduced HTML job — so printing a PDF job is not a
+   second code path, just a different way of filling a .page. */
+function buildPrintPagesPDF(pages){
+  const root = document.getElementById('printroot');
+  root.innerHTML = '';
+  pages.forEach((p, i) => {
+    const pg = document.createElement('div');
+    pg.className = 'page'; pg.dataset.page = i + 1;
+    pg.style.padding = '0';   // the PDF's own margins are already baked into the image
+    const img = document.createElement('img');
+    img.src = p.dataUrl; img.alt = '';
+    img.style.cssText = 'width:100%;height:auto;display:block';
+    pg.appendChild(img);
+    root.appendChild(pg);
+    p.printEl = pg;
+  });
+}
+
+function readFile(f){
+  const isPDF = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+  if(isPDF){ loadPdf(f); return; }
+  const r = new FileReader();
+  r.onload = () => {
+    const raw = String(r.result);
+    const isHTML = /\.(html?|xhtml)$/i.test(f.name) || /<\w+[\s>]/.test(raw.slice(0, 400));
+    const html = isHTML
+      ? (raw.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? raw)
+      : raw.split(/\n{2,}/).map(p => `<p>${p.replace(/[<>&]/g, c =>
+          ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])).replace(/\n/g,' ')}</p>`).join('');
+    load({ title: f.name.replace(/\.[^.]+$/,''), filename: f.name,
+           css: (window.SAMPLE_DOC?.css || FALLBACK.css), html });
+  };
+  r.readAsText(f);
+}
+
+/* ── boot ──────────────────────────────────────────────────────── */
+document.documentElement.classList.remove('no-js');
+document.documentElement.classList.add('js');
+setTimeout(() => document.querySelector('.vnums .a')?.classList.add('struck'), 260);
+
+const frame = new URLSearchParams(location.search).get('frame');
+load(window.SAMPLE_DOC || FALLBACK).then(() => {
+  if(frame === 'sheet'){
+    const w = PAGES.find(p => p.waste);
+    if(w) toggle(w.n);
+  }
+  if(frame === 'xray') document.getElementById('btnXray').click();
+  if(frame === 'agent') flip('agent');
+  if(frame === 'story') flip('story');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "proof-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for PROOF — measures a print job before it prints and flags wasteful sheets.",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "proof-mcp": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.23.8"
+  }
+}

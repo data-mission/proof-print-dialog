@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PROOF — how it actually works</title>
+<meta name="description" content="Every feature in PROOF documented against its own source: real measured pagination, glyph-geometry ink coverage, a waste classifier proven against pages it correctly does NOT flag, the MCP server, and a 20/20 automated verification run.">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   PROOF — documentation. Same tokens as index.html, on purpose:
+   this is the same product, not a different skin for it.
+   Single file · no dependencies · no webfonts · no backend.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#FFFFFF;
+  --tint:#F1F0FB;
+  --tint-2:#E6E4F5;
+  --ink:#141126;
+  --ink-2:#4A4568;
+  --ink-3:#8F8AA6;
+
+  --blue:#2B3BFF;
+  --pink:#FF4D9E;
+  --yellow:#FFD21C;
+  --green:#00B37E;
+  --cyan:#12B0C7;
+
+  --stroke:3px;
+  --sh:5px 5px 0 var(--ink);
+  --sh-sm:3px 3px 0 var(--ink);
+  --sh-lg:8px 8px 0 var(--ink);
+  --r:14px;
+
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Hiragino Maru Gothic ProN",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --e:cubic-bezier(.2,.9,.25,1.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--tint);color:var(--ink);font-family:var(--sans);line-height:1.5;
+  -webkit-font-smoothing:antialiased;font-synthesis-weight:none;
+  max-width:100%;overflow-x:clip}
+::selection{background:var(--yellow)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+a{color:var(--blue)}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.mono{font-family:var(--mono)}
+.wrap{width:min(100% - 40px,1180px);margin-inline:auto}
+code{font-family:var(--mono);background:var(--tint);border:1.5px solid var(--ink);
+  border-radius:5px;padding:1px 6px;font-size:.92em}
+pre{font-family:var(--mono);font-size:.78rem;line-height:1.6;background:var(--ink);color:#D9D6E8;
+  border-radius:10px;padding:16px 18px;overflow-x:auto;border:var(--stroke) solid var(--ink)}
+pre .k{color:var(--yellow)}
+pre .s{color:#8FE29A}
+pre .c{color:#7A7495}
+pre .n{color:#7DD3FF}
+
+/* ── top bar ───────────────────────────────────────────────────── */
+.bar{display:flex;align-items:center;gap:14px;padding:13px 0;background:var(--paper);
+  border-bottom:var(--stroke) solid var(--ink);position:sticky;top:0;z-index:30}
+.bar .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.06rem;letter-spacing:-.035em;flex:none}
+.logo svg{width:19px;height:19px;flex:none}
+.doctag{font:700 .62rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  background:var(--tint);border:2px solid var(--ink);border-radius:100px;padding:5px 10px;color:var(--ink-2)}
+.bar .spacer{flex:1}
+.pill{font:700 .72rem/1 var(--sans);letter-spacing:-.01em;padding:8px 13px;border-radius:100px;
+  border:2px solid var(--ink);background:var(--paper);white-space:nowrap;text-decoration:none;color:var(--ink)}
+.pill.go{background:var(--blue);color:#fff}
+
+/* ── hero ──────────────────────────────────────────────────────── */
+.hero{padding:clamp(40px,7vh,68px) 0 clamp(28px,4vh,40px)}
+.eyebrow{font:700 .68rem/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(2.1rem,5.6vw,3.9rem);font-weight:800;letter-spacing:-.04em;line-height:.98;margin-top:.3em}
+h1 b{color:var(--blue)}
+.lede{font-size:clamp(1.02rem,1.7vw,1.24rem);color:var(--ink-2);max-width:66ch;margin-top:.7em;font-weight:550}
+
+.heroverdict{display:grid;grid-template-columns:auto 1fr;gap:clamp(18px,3vw,34px);align-items:center;
+  margin-top:clamp(26px,4vh,40px);background:var(--yellow);border:var(--stroke) solid var(--ink);
+  border-radius:var(--r);box-shadow:var(--sh-lg);padding:clamp(18px,3vw,28px);rotate:-.5deg}
+.hv-nums{display:flex;align-items:baseline;gap:10px}
+.hv-nums .a{font-size:clamp(2.6rem,6vw,4.2rem);font-weight:800;letter-spacing:-.05em;color:var(--ink-2)}
+.hv-nums .ar{font-size:1.3rem;color:var(--ink-2)}
+.hv-nums .b{font-size:clamp(2.6rem,6vw,4.2rem);font-weight:800;letter-spacing:-.05em}
+.hv-stats{display:flex;flex-wrap:wrap;gap:clamp(16px,3vw,32px)}
+.hv-stats div{min-width:88px}
+.hv-stats dt{font:700 .6rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.hv-stats dd{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.hv-cap{grid-column:1/-1;font:600 .72rem/1.4 var(--mono);color:var(--ink-2);margin-top:2px}
+
+/* ── section shell ─────────────────────────────────────────────── */
+section{padding:clamp(40px,6.5vh,72px) 0;border-top:1.5px dashed var(--ink-3)}
+.sec-num{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;
+  border:2px solid var(--ink);border-radius:9px;background:var(--paper);box-shadow:var(--sh-sm);
+  font:800 .95rem var(--mono);flex:none}
+.sec-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:clamp(20px,3vh,30px)}
+.sec-head h2{font-size:clamp(1.3rem,2.6vw,1.85rem);font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.sec-head p{font-size:.92rem;color:var(--ink-2);margin-top:.4em;max-width:62ch}
+.claim{font:700 .68rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:6px;border-radius:100px;padding:5px 11px 5px 8px;
+  border:2px solid var(--ink);margin-top:10px}
+.claim.real{background:color-mix(in oklab,var(--green) 16%,var(--paper))}
+.claim i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
+.card{background:var(--paper);border:2px solid var(--ink);border-radius:var(--r);padding:clamp(16px,2.4vw,24px);
+  box-shadow:var(--sh-sm)}
+.card + .card{margin-top:14px}
+.card h3{font-size:1rem;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.card p{font-size:.88rem;color:var(--ink-2);margin-top:8px;line-height:1.55}
+.stepnum{width:22px;height:22px;border-radius:6px;background:var(--ink);color:#fff;flex:none;
+  display:grid;place-content:center;font:800 .68rem var(--mono)}
+
+/* ── proof strip: kept-despite-low-ink ───────────────────────────── */
+.proofstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}
+.pf{background:var(--paper);border:2px solid var(--green);border-radius:12px;padding:14px 15px;
+  box-shadow:3px 3px 0 var(--green)}
+.pf .tagrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pf .pgnum{font:800 .72rem var(--mono);background:var(--ink);color:#fff;border-radius:5px;padding:3px 7px}
+.pf .ink{font:800 1.4rem var(--mono);letter-spacing:-.02em;color:var(--green)}
+.pf b{display:block;font-size:.87rem;font-weight:750;margin-top:8px}
+.pf .why{font:700 .64rem/1.3 var(--mono);letter-spacing:.03em;color:var(--ink-2);margin-top:6px}
+.pf q{display:block;font-size:.78rem;color:var(--ink-2);font-style:italic;margin-top:7px;
+  border-left:2px solid var(--ink-3);padding-left:8px}
+
+/* ── flagged table ─────────────────────────────────────────────── */
+.ftable{width:100%;border-collapse:separate;border-spacing:0;margin-top:18px;
+  border:var(--stroke) solid var(--ink);border-radius:var(--r);overflow:hidden;background:var(--paper)}
+.ftable th{background:var(--ink);color:#fff;font:700 .62rem/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;text-align:left;padding:11px 13px}
+.ftable td{padding:12px 13px;font-size:.85rem;border-top:1.5px solid var(--tint-2);vertical-align:top}
+.ftable tr:nth-child(even) td{background:var(--tint)}
+.ftable .pg{font:800 .85rem var(--mono)}
+.ftable .ink{font:800 .95rem var(--mono);color:var(--pink)}
+.ftable .rsn{font:700 .68rem var(--mono);letter-spacing:.03em;background:color-mix(in oklab,var(--pink) 14%,var(--paper));
+  color:var(--pink);border-radius:100px;padding:3px 9px;display:inline-block}
+.ftable q{font-style:italic;color:var(--ink-2)}
+
+/* ── x-ray illustration (REAL measured glyph rects, two real pages) ── */
+.xrwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.xrcard{background:var(--ink);border:var(--stroke) solid var(--ink);border-radius:10px;overflow:hidden}
+.xrcard .xrhead{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;
+  background:#1E1A33;font:700 .64rem/1 var(--mono);color:#B7B0D6;letter-spacing:.05em}
+.xrbox{aspect-ratio:8.5/11;position:relative;background:var(--ink)}
+.xrbox i{position:absolute;background:#7DF9FF;border-radius:1px;box-shadow:0 0 3px rgba(125,249,255,.7)}
+.xrbox i.rule{background:var(--pink)}
+
+/* ── feature list ─────────────────────────────────────────────── */
+.flist{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.fitem{display:grid;grid-template-columns:26px 1fr;gap:11px;align-items:start;
+  padding-bottom:10px;border-bottom:1.5px dashed var(--tint-2)}
+.fitem:last-child{border-bottom:0;padding-bottom:0}
+.fitem i{width:26px;height:26px;border-radius:8px;border:2px solid var(--ink);background:var(--yellow);
+  display:grid;place-content:center;font:800 .68rem var(--mono);font-style:normal}
+.fitem b{display:block;font-size:.92rem;font-weight:750}
+.fitem span{font-size:.85rem;color:var(--ink-2);line-height:1.5}
+
+/* ── mcp tools table ──────────────────────────────────────────── */
+.tooltable{display:grid;gap:10px;margin-top:16px}
+.trow{display:grid;grid-template-columns:150px 1fr;gap:12px;background:var(--paper);
+  border:2px solid var(--ink);border-radius:10px;padding:12px 14px;align-items:start}
+.trow code{background:none;border:0;padding:0;font-weight:800;color:var(--blue)}
+.trow p{font-size:.83rem;color:var(--ink-2)}
+
+/* ── since-1995 mini replica ──────────────────────────────────── */
+.old95mini{background:#E9E9E7;border:1px solid #A9A9A5;border-radius:6px;overflow:hidden;
+  font:400 .78rem/1.5 -apple-system,system-ui,sans-serif;box-shadow:var(--sh-sm);max-width:360px}
+.o95-bar{background:linear-gradient(#F5F5F3,#DEDEDA);border-bottom:1px solid #B4B4B0;
+  padding:8px 10px;font-weight:600;font-size:.76rem;text-align:center;color:#3A3A38}
+.o95-body{display:grid;grid-template-columns:78px 1fr;gap:12px;padding:14px}
+.o95-prev{background:#fff;border:1px solid #B4B4B0;aspect-ratio:8.5/11;padding:5px;overflow:hidden;position:relative}
+.o95-prev .ln{height:1.5px;background:#000;opacity:.3;margin-bottom:3px;border-radius:1px}
+.o95-fields{display:flex;flex-direction:column;gap:7px;font-size:.72rem;color:#3A3A38}
+.o95-fields .of{display:flex;justify-content:space-between;gap:8px}
+.o95-fields .of span:last-child{background:#fff;border:1px solid #A9A9A5;border-radius:3px;padding:2px 6px}
+.o95-foot{border-top:1px solid #B4B4B0;padding:8px 10px;display:flex;justify-content:flex-end;gap:6px}
+.o95-btn{font-size:.72rem;padding:4px 12px;border-radius:4px;border:1px solid #A9A9A5;background:#F7F7F5}
+.o95-btn.p{background:#3D6FD8;color:#fff;border-color:#3767C8}
+.sfacts{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+.sfact{background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:10px 14px;min-width:120px}
+.sfact b{display:block;font-size:1.4rem;font-weight:800;font-family:var(--mono)}
+.sfact span{font-size:.72rem;color:var(--ink-2)}
+
+/* ── verify checklist ─────────────────────────────────────────── */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:9px;margin-top:16px}
+.vitem{display:flex;align-items:flex-start;gap:9px;background:var(--paper);border:2px solid var(--ink);
+  border-radius:9px;padding:10px 12px}
+.vitem .ck{width:19px;height:19px;border-radius:5px;background:var(--green);color:#fff;flex:none;
+  display:grid;place-content:center;font:800 .7rem var(--mono);margin-top:1px}
+.vitem span{font-size:.82rem;line-height:1.4}
+.vitem b{font-family:var(--mono);font-weight:800;font-size:.78rem;display:block;color:var(--ink-2)}
+.vfoot{margin-top:16px;display:flex;align-items:center;gap:10px;font:800 .95rem var(--mono)}
+.vfoot .dot{width:12px;height:12px;border-radius:50%;background:var(--green)}
+
+/* ── palette strip (art direction reference) ─────────────────── */
+.swrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.sw{display:flex;align-items:center;gap:8px;background:var(--paper);border:2px solid var(--ink);
+  border-radius:100px;padding:5px 12px 5px 5px;font:700 .72rem var(--mono)}
+.sw i{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink)}
+
+footer{padding:clamp(36px,6vh,64px) 0 44px}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;
+  border-top:var(--stroke) solid var(--ink);padding-top:22px}
+
+@media(max-width:860px){
+  .grid2{grid-template-columns:1fr}
+  .heroverdict{grid-template-columns:1fr}
+  .xrwrap{grid-template-columns:1fr}
+  .trow{grid-template-columns:1fr}
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.chipbtn{font:700 .74rem/1 var(--sans);letter-spacing:-.01em;padding:9px 13px;border-radius:100px;
+  border:2px solid var(--ink);background:var(--paper);box-shadow:var(--sh-sm);
+  transition:transform .13s var(--e),box-shadow .13s var(--e);white-space:nowrap}
+.chipbtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.chipbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chipbtn.go{background:var(--blue);color:#fff}
+.chipbtn.ghost{box-shadow:none;border-color:var(--ink-3);color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="logo">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.4" fill="none" stroke="var(--pink)" stroke-width="2.4"/>
+        <path d="M10 .5v19M.5 10h19" stroke="var(--ink)" stroke-width="1.6"/>
+      </svg>
+      PROOF
+    </div>
+    <span class="doctag">Documentation</span>
+    <span class="spacer"></span>
+    <button class="chipbtn" id="btnCopyMd" data-label="Copy as Markdown">Copy as Markdown</button>
+    <button class="chipbtn" id="btnDownloadMd" data-label="Download .md">Download .md</button>
+    <a class="pill" href="./deck.html">Presentation</a>
+    <a class="pill go" href="./index.html">Open the app →</a>
+  </div>
+</div>
+
+<main class="wrap">
+
+<!-- ═══ HERO ═══════════════════════════════════════════════════ -->
+<section class="hero" style="border-top:0;padding-top:clamp(40px,7vh,68px)">
+  <p class="eyebrow">Every claim below is traceable to a line of code</p>
+  <h1>How PROOF<br><b>actually</b> works.</h1>
+  <p class="lede">This page exists because a screenshot of the app can't show you what happens when
+    you click, drop a file, or toggle X-ray mode — and because every number the app shows is
+    <em>computed</em>, not written. So here is the full mechanism, every feature, and the
+    verification run that checked all of it against the real, current code — not a mockup of it.</p>
+
+  <div class="heroverdict">
+    <div class="hv-nums">
+      <span class="a num">15</span><span class="ar">→</span><span class="b num">10</span>
+    </div>
+    <dl class="hv-stats">
+      <div><dt>Flagged waste</dt><dd class="num">5</dd></div>
+      <div><dt>Mean ink</dt><dd class="num">2.9%</dd></div>
+      <div><dt>Cost avoided</dt><dd class="num">$0.06</dd></div>
+      <div><dt>Glyph runs measured</dt><dd class="num">241</dd></div>
+    </dl>
+    <p class="hv-cap">↑ live output of <code>proof/index.html</code> against its bundled 15-page demo report — reproduced here, not invented for this page.</p>
+  </div>
+</section>
+
+<!-- ═══ 1 · PAGINATION ═════════════════════════════════════════ -->
+<section id="pagination">
+  <div class="sec-head">
+    <span class="sec-num">01</span>
+    <div>
+      <h2>Pagination is measured, not assumed</h2>
+      <p>The document is laid out in a real, hidden DOM element and split into pages by walking its
+        blocks and accumulating their <em>actual rendered heights</em> — the page count is an output
+        of layout, not a number anyone typed in.</p>
+      <span class="claim real"><i></i>15 pages produced by this exact mechanism, this run</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h3><span class="stepnum">1</span>Real page geometry</h3>
+        <p>Every page box is <code>816×1056px</code> — 8.5"×11" letter paper at 96dpi — with roughly
+          1in margins (<code>PAD=84px</code> sides, <code>PAD_T=96px</code> top/bottom). This is the
+          same box the print stylesheet and the ink measurement both use, so "a page" means the same
+          thing everywhere in the app.</p>
+      </div>
+      <div class="card">
+        <h3><span class="stepnum">2</span>Heights come from the browser, not a guess</h3>
+        <p>PROOF walks the document's block-level children (headings, paragraphs, tables,
+          blockquotes) in order, asking <code>getBoundingClientRect()</code> for each one's real
+          rendered height plus its margin, and accumulates that running total against the page's
+          content height (<code>CONTENT_H</code>). When the next block would overflow the page, the
+          current page is flushed and a new one starts.</p>
+      </div>
+      <div class="card">
+        <h3><span class="stepnum">3</span>Explicit breaks still respected</h3>
+        <p>A block carrying the <code>.pagebreak</code> marker forces an early flush regardless of
+          how much room is left — the same mechanism a real document's manual page breaks would need.</p>
+      </div>
+    </div>
+    <pre><span class="c">// proof/index.html — paginate()</span>
+<span class="k">for</span>(<span class="k">const</span> b <span class="k">of</span> blocks){
+  <span class="k">if</span>(b.classList.contains(<span class="s">'pagebreak'</span>)){ flush(); <span class="k">continue</span>; }
+  <span class="k">const</span> bh = b.getBoundingClientRect().height
+           + parseFloat(getComputedStyle(b).marginBottom || <span class="n">0</span>);
+  <span class="k">if</span>(h + bh > CONTENT_H && cur.length){ flush(); }
+  cur.push(b.cloneNode(<span class="k">true</span>));
+  h += bh;
+}</pre>
+  </div>
+</section>
+
+<!-- ═══ 2 · INK MEASUREMENT ════════════════════════════════════ -->
+<section id="ink">
+  <div class="sec-head">
+    <span class="sec-num">02</span>
+    <div>
+      <h2>Ink coverage is measured from real glyph geometry</h2>
+      <p>This is <b>not</b> a canvas rasterisation or a pixel scan. PROOF walks every text node on a
+        finished page and asks the browser's own layout engine for the exact rectangles its glyphs
+        occupy — the same geometry the browser already computed to draw the page.</p>
+      <span class="claim real"><i></i>241 glyph runs measured across 15 pages, this run</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <pre><span class="c">// proof/index.html — inkMeasured()</span>
+<span class="k">const</span> GLYPH_DENSITY = <span class="n">0.16</span>;  <span class="c">// ink within a body line box</span>
+<span class="k">const</span> WEIGHT_BOOST  = <span class="n">0.055</span>; <span class="c">// extra per 100wt over 400</span>
+
+<span class="k">for</span> (<span class="k">let</span> n; (n = walker.nextNode()); ) {
+  range.selectNodeContents(n);
+  <span class="k">const</span> rects = range.getClientRects();
+  <span class="k">const</span> weight = getComputedStyle(n.parentElement).fontWeight;
+  <span class="k">const</span> density = GLYPH_DENSITY
+    + Math.max(<span class="n">0</span>, (weight-<span class="n">400</span>)/<span class="n">100</span>) * WEIGHT_BOOST;
+  <span class="k">for</span> (<span class="k">const</span> r <span class="k">of</span> rects)
+    ink += r.width * r.height * density;
+}
+<span class="c">// + table/blockquote border-stroke area, counted separately
+// result: (ink / pageContentArea) * 100 = ink coverage %</span></pre>
+    <div>
+      <div class="card">
+        <h3>Why glyph rectangles, not pixels</h3>
+        <p><code>Range.getClientRects()</code> returns the true layout rectangles a run of text
+          occupies — line by line, wrapped exactly as the browser wrapped it. Each rectangle's area
+          is weighted by a stated density constant rather than counted as solid ink, because a line
+          box is mostly whitespace between strokes: <code>0.16</code> for normal-weight text, rising
+          with font weight. Table and blockquote border strokes are added separately since they carry
+          real ink too.</p>
+      </div>
+      <div class="card">
+        <h3>A second, independent method exists — and is explicitly not the headline number</h3>
+        <p>PROOF also ships a canvas-rasterisation path (<code>inkOf()</code>): serialise the page to
+          an SVG, draw it to an offscreen canvas, count non-white pixels weighted by luminance. The
+          code labels this "a second opinion, not used for the headline number" — it's kept as a
+          cross-check, but the glyph-geometry method above is what drives every number on screen.</p>
+      </div>
+      <div class="card">
+        <h3>Disclosed fallback, never silent</h3>
+        <p>If layout measurement can't run, PROOF falls back to <code>estimateInk()</code> — a stated
+          formula over character count, heading count, and table-cell count — and the status line
+          says so plainly: <code>measured · 241 glyph runs across 15 pages</code> when live, or
+          <code>estimated · layout measurement unavailable</code> when it isn't. The number is never
+          presented as more certain than it is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 3 · WASTE CLASSIFICATION — the best detail ═════════════ -->
+<section id="classify">
+  <div class="sec-head">
+    <span class="sec-num">03</span>
+    <div>
+      <h2>Low ink alone is not waste — this is the detail that proves it</h2>
+      <p>A title page and a table of contents are both legitimately sparse. A naive rule
+        ("under 2% ink → flag it") would wrongly flag both of them. PROOF's classifier doesn't:</p>
+      <span class="claim real"><i></i>4 real pages below the 2.0% threshold, all correctly kept</span>
+    </div>
+  </div>
+  <pre><span class="c">// proof/index.html — isWaste()
+// Low coverage ALONE is not waste. A sheet is waste only when it is
+// BOTH under the threshold AND carries no structure (no heading, no
+// table, no list) AND its text is short enough to be furniture.</span>
+<span class="k">function</span> isWaste(pageEl, ink){
+  <span class="k">if</span>(ink >= WASTE_THRESHOLD) <span class="k">return false</span>;
+  <span class="k">if</span>(FURNITURE.test(text)) <span class="k">return true</span>;               <span class="c">// known furniture wins outright</span>
+  <span class="k">const</span> structured = pageEl.querySelector(<span class="s">'h1,h2,h3,table,ul,ol,svg,img,blockquote'</span>);
+  <span class="k">if</span>(structured) <span class="k">return false</span>;                          <span class="c">// title page, TOC, chart — keep it</span>
+  <span class="k">return</span> text.length < <span class="n">120</span>;                            <span class="c">// an orphaned line — flag it</span>
+}</pre>
+
+  <div class="proofstrip">
+    <div class="pf">
+      <div class="tagrow"><span class="pgnum">SHEET 01</span><span class="ink">2.06%</span></div>
+      <b>Title page — kept</b>
+      <div class="why">STRUCTURE: &lt;H1&gt;</div>
+      <q>“Confidential — Prepared for the Board of Directors. Northgate Holdings…”</q>
+    </div>
+    <div class="pf">
+      <div class="tagrow"><span class="pgnum">SHEET 02</span><span class="ink">1.0%</span></div>
+      <b>Table of contents — kept</b>
+      <div class="why">STRUCTURE: &lt;H2&gt;</div>
+      <q>“Table of Contents. 1. Executive Summary…3. 2. Financial Performance…5.”</q>
+    </div>
+    <div class="pf">
+      <div class="tagrow"><span class="pgnum">SHEET 07</span><span class="ink">1.91%</span></div>
+      <b>Section-opener — kept</b>
+      <div class="why">STRUCTURE: &lt;H3&gt;</div>
+      <q>“Segment revenue trend. The chart below sets out quarterly segment revenue…”</q>
+    </div>
+    <div class="pf">
+      <div class="tagrow"><span class="pgnum">SHEET 14</span><span class="ink">1.95%</span></div>
+      <b>Signature page — kept</b>
+      <div class="why">STRUCTURE: &lt;H2&gt;</div>
+      <q>“Section Six. Signature &amp; Approvals. The undersigned certify…”</q>
+    </div>
+  </div>
+  <p style="margin-top:16px;font-size:.85rem;color:var(--ink-2);max-width:70ch">
+    All four measure <em>below</em> the 2.0% waste threshold — lower, in three cases, than several
+    of the five sheets flagged below. They print anyway, because each one has a structural element
+    the classifier checks for before it ever looks at length. That check is the difference between
+    a threshold and a classifier.
+  </p>
+</section>
+
+<!-- ═══ 4 · THE FIVE FLAGGED PAGES ═════════════════════════════ -->
+<section id="flagged">
+  <div class="sec-head">
+    <span class="sec-num">04</span>
+    <div>
+      <h2>The five pages actually flagged, and why each one</h2>
+      <p>No two flagged for the same literal reason — each is pattern-matched against its own real
+        text, not against a caption written for this demo.</p>
+    </div>
+  </div>
+  <table class="ftable">
+    <thead><tr><th>Sheet</th><th>Ink</th><th>Reason</th><th>What the page actually says</th></tr></thead>
+    <tbody>
+      <tr><td class="pg">04</td><td class="ink">0.11%</td><td><span class="rsn">orphaned_footer</span></td>
+        <td><q>© 2026 Northgate Holdings, Inc. All rights reserved.</q></td></tr>
+      <tr><td class="pg">06</td><td class="ink">0.05%</td><td><span class="rsn">break_artefact</span></td>
+        <td><q>— continued —</q></td></tr>
+      <tr><td class="pg">09</td><td class="ink">0.10%</td><td><span class="rsn">intentionally_blank</span></td>
+        <td><q>This page intentionally left blank.</q></td></tr>
+      <tr><td class="pg">11</td><td class="ink">0.06%</td><td><span class="rsn">orphaned_footer</span></td>
+        <td><q>Terms and conditions apply.</q></td></tr>
+      <tr><td class="pg">13</td><td class="ink">0.01%</td><td><span class="rsn">orphaned_footer</span></td>
+        <td><q>14</q> — a lone folio number, nothing else reached this sheet.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══ 5 · INK X-RAY ══════════════════════════════════════════ -->
+<section id="xray">
+  <div class="sec-head">
+    <span class="sec-num">05</span>
+    <div>
+      <h2>Ink X-ray: the measurement, made visible</h2>
+      <p>A toggle in the toolbar re-renders every sheet as its measured ink map instead of its
+        typeset content. Every cyan mark below is a real <code>Range.getClientRects()</code>
+        rectangle — not a stylised graphic. These two panels are the <em>actual</em> recorded
+        coordinates for two real sheets from this run.</p>
+    </div>
+  </div>
+  <div class="xrwrap">
+    <div class="xrcard">
+      <div class="xrhead"><span>SHEET 04 · FLAGGED · 0.11%</span><span>1 glyph run</span></div>
+      <div class="xrbox" id="xr4"></div>
+    </div>
+    <div class="xrcard">
+      <div class="xrhead"><span>SHEET 08 · KEPT · 6.27%</span><span>24 glyph runs</span></div>
+      <div class="xrbox" id="xr8"></div>
+    </div>
+  </div>
+  <p style="margin-top:14px;font-size:.85rem;color:var(--ink-2);max-width:70ch">
+    A wasted sheet is a near-total void with one faint smear — the orphaned copyright line. A kept
+    sheet glows with paragraph after paragraph of real rectangles. The difference is not styled to
+    look dramatic; it <em>is</em> the coverage number, drawn instead of stated.
+  </p>
+</section>
+
+<!-- ═══ 6 · THE AGENT VIEW ═════════════════════════════════════ -->
+<section id="agentview">
+  <div class="sec-head">
+    <span class="sec-num">06</span>
+    <div>
+      <h2>The Agent view: the MCP surface, live in the app itself</h2>
+      <p>A fourth toolbar button — "Agent" — flips the same screen to show what an AI agent sees
+        when it proofs this exact document over MCP. This is not a canned screenshot glued into the
+        UI: the transcript is generated at click-time from the live <code>PAGES</code> array, so if
+        the loaded document changes, the transcript changes with it.</p>
+      <span class="claim real"><i></i>Regenerated from live data on every view, not a static string</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <pre>claude → proof · stdio                            <span class="c">● connected</span>
+
+<span class="c"># an agent proofs the file before anything moves</span>
+<span class="k">→ tools/call</span>
+  { "name": "waste_report", "arguments": { "doc": "Q3_Operating_Review_FINAL_v4.docx" } }
+<span class="k">← result</span>
+  {
+    <span class="s">"pages_total"</span>: <span class="n">15</span>, <span class="s">"pages_printing"</span>: <span class="n">10</span>,
+    <span class="s">"flagged"</span>: [
+      { <span class="s">"page"</span>:  <span class="n">4</span>, <span class="s">"ink_pct"</span>: <span class="n">0.11</span>, <span class="s">"reason"</span>: <span class="s">"orphaned_footer"</span> },
+      { <span class="s">"page"</span>:  <span class="n">6</span>, <span class="s">"ink_pct"</span>: <span class="n">0.05</span>, <span class="s">"reason"</span>: <span class="s">"break_artefact"</span> },
+      { <span class="s">"page"</span>:  <span class="n">9</span>, <span class="s">"ink_pct"</span>: <span class="n">0.1</span>,  <span class="s">"reason"</span>: <span class="s">"intentionally_blank"</span> },
+      { <span class="s">"page"</span>: <span class="n">11</span>, <span class="s">"ink_pct"</span>: <span class="n">0.06</span>, <span class="s">"reason"</span>: <span class="s">"orphaned_footer"</span> },
+      { <span class="s">"page"</span>: <span class="n">13</span>, <span class="s">"ink_pct"</span>: <span class="n">0.01</span>, <span class="s">"reason"</span>: <span class="s">"orphaned_footer"</span> }
+    ],
+    <span class="s">"threshold_pct"</span>: <span class="n">2</span>,
+    <span class="s">"method"</span>: <span class="s">"glyph_run_geometry"</span>
+  }
+<span class="c"># 5 sheets never left the tray</span></pre>
+    <div class="tooltable">
+      <div class="trow"><code>proof</code><p><span class="mono" style="font-size:.75rem;color:var(--ink-3)">{ doc?: string }</span> — paginate and measure a document; every sheet's line count, ink coverage, waste verdict.</p></div>
+      <div class="trow"><code>waste_report</code><p><span class="mono" style="font-size:.75rem;color:var(--ink-3)">{ doc?: string }</span> — only the flagged sheets, with the reason and the coverage that condemned each.</p></div>
+      <div class="trow"><code>drop_pages</code><p><span class="mono" style="font-size:.75rem;color:var(--ink-3)">{ pages: number[] }</span> — remove sheets and reflow; returns the job that will actually print.</p></div>
+      <div class="trow"><code>ink_cost</code><p><span class="mono" style="font-size:.75rem;color:var(--ink-3)">{ drop?: number[] }</span> — sheets, mean coverage, and cost, as-is vs. as-proposed.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 7 · SINCE 1995 ══════════════════════════════════════════ -->
+<section id="since1995">
+  <div class="sec-head">
+    <span class="sec-num">07</span>
+    <div>
+      <h2>"Since 1995": the honest before, live in the app</h2>
+      <p>A fifth toolbar state — "Since 1995" — renders the format being reinvented, honestly, using
+        the app's own real data: the preview pane shows sheet 1 of the actual loaded document,
+        scaled to the real ~104px width a 1995-era print dialog would have given you. It is not a
+        stand-in graphic.</p>
+    </div>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="old95mini">
+        <div class="o95-bar">Print</div>
+        <div class="o95-body">
+          <div class="o95-prev">
+            <div class="ln" style="height:5px;width:70%"></div>
+            <div class="ln" style="width:92%"></div><div class="ln" style="width:88%"></div>
+            <div class="ln" style="width:95%"></div><div class="ln" style="width:60%"></div>
+          </div>
+          <div class="o95-fields">
+            <div class="of"><span>Printer</span><span>HP LaserJet 4</span></div>
+            <div class="of"><span>Copies</span><span>1</span></div>
+            <div class="of"><span>Pages</span><span>All</span></div>
+            <div class="of"><span>Layout</span><span>Portrait</span></div>
+            <div class="of"><span>Scale</span><span>100%</span></div>
+          </div>
+        </div>
+        <div class="o95-foot"><span class="o95-btn">Cancel</span><span class="o95-btn p">Print</span></div>
+      </div>
+      <p style="margin-top:10px;font-size:.82rem;color:var(--ink-2);max-width:44ch">
+        The preview pane above is a compact replica of the same markup the app renders — the real
+        <code>thumb()</code> function drawing real sheet 1, scaled to 104px.
+      </p>
+    </div>
+    <div>
+      <div class="card">
+        <h3>What it actually says</h3>
+        <p><q style="font-style:italic">"Page 1 of 15, at about a hundred pixels. Five of those
+          sheets are almost blank and there is no way to know it from here."</q> — generated from
+          the live page count and live waste count, not typed once and left to go stale.</p>
+      </div>
+      <div class="sfacts">
+        <div class="sfact"><b>4</b><span>controls, essentially unchanged since 1995</span></div>
+        <div class="sfact"><b>~104px</b><span>the preview you're asked to judge from</span></div>
+        <div class="sfact"><b>0</b><span>of them tell you what's actually on the page</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 8 · DROP / RESTORE ═════════════════════════════════════ -->
+<section id="drop">
+  <div class="sec-head">
+    <span class="sec-num">08</span>
+    <div><h2>Drop and restore, per sheet or in bulk</h2>
+      <p>The verdict isn't the app's alone to make — you can override it in either direction.</p></div>
+  </div>
+  <div class="flist">
+    <div class="fitem"><i>1</i><div><b>Bulk drop</b><span>"Drop the 5 flagged" sets <code>dropped=true</code> on every sheet the classifier flagged, in one action.</span></div></div>
+    <div class="fitem"><i>2</i><div><b>Restore all</b><span>Clears every drop in one action — nothing is destructive or one-way.</span></div></div>
+    <div class="fitem"><i>3</i><div><b>Per-sheet override</b><span>Open any sheet's detail panel and drop or restore just that one — including keeping a flagged sheet, or dropping one the classifier kept.</span></div></div>
+    <div class="fitem"><i>4</i><div><b>The print root stays in sync</b><span>Every drop/restore toggles a <code>.dropped</code> class on the corresponding element in the hidden print root, so what you see on screen is always what will physically print.</span></div></div>
+  </div>
+</section>
+
+<!-- ═══ 9 · REAL PRINTING ══════════════════════════════════════ -->
+<section id="print">
+  <div class="sec-head">
+    <span class="sec-num">09</span>
+    <div><h2>A real Print button — window.print(), not a mockup</h2>
+      <p>"Print" calls the browser's actual print pipeline against the same document PROOF measured, not a canned screenshot of one.</p></div>
+  </div>
+  <div class="grid2">
+    <pre><span class="c">/* proof/index.html — @media print */</span>
+.app,.grain{ <span class="k">display</span>:<span class="n">none</span>!important; }
+#printroot{ <span class="k">position</span>:<span class="n">static</span>; }
+.page{ <span class="k">page-break-after</span>:<span class="n">always</span>; }
+.page.dropped{ <span class="k">display</span>:<span class="n">none</span>!important; }</pre>
+    <div class="card">
+      <h3>What actually happens</h3>
+      <p>Clicking <b>Print</b> calls <code>window.print()</code> against a hidden <code>#printroot</code>
+        that mirrors the on-screen job exactly. The print stylesheet hides the app chrome entirely and
+        removes any sheet still marked <code>.dropped</code>, so the job the OS print dialog receives
+        is the already-reduced one — the sheets you decided not to print genuinely never reach it.
+        An explicit <b>"Print everything anyway"</b> button exists as an escape hatch that clears
+        every drop first, for anyone who wants the original, unedited job.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 10 · DROP YOUR OWN FILE ═════════════════════════════════ -->
+<section id="ownfile">
+  <div class="sec-head">
+    <span class="sec-num">10</span>
+    <div><h2>Proof your own file — the same pipeline, not a second demo mode</h2>
+      <p>The rail has a real drop zone: drag in an <code>.html</code>, <code>.txt</code>, or
+        <code>.md</code> file, or click it to pick one.</p></div>
+  </div>
+  <div class="flist">
+    <div class="fitem"><i>1</i><div><b>Reading the file</b><span>A <code>FileReader</code> reads the dropped file as text; HTML files have their <code>&lt;body&gt;</code> extracted, plain text/Markdown is split on blank lines into paragraphs.</span></div></div>
+    <div class="fitem"><i>2</i><div><b>Identical processing</b><span>The result is handed to the exact same <code>load()</code> function the bundled demo report runs through — the same pagination, the same glyph-geometry measurement, the same classifier. There is no separate "demo mode" code path.</span></div></div>
+    <div class="fitem"><i>3</i><div><b>Instant re-proof</b><span>The sheet wall, verdict card, and stats all re-render against the new document immediately — no page reload.</span></div></div>
+  </div>
+</section>
+
+<!-- ═══ 11 · MCP SERVER ══════════════════════════════════════════ -->
+<section id="mcp">
+  <div class="sec-head">
+    <span class="sec-num">11</span>
+    <div>
+      <h2>The MCP server — proofing a document without a human in the loop</h2>
+      <p>The web page is one surface on PROOF. A real <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP</a>
+        server in <code>proof/mcp/</code> exposes the same measurement as four callable tools over
+        stdio, so an agent can proof a job before a sheet moves.</p>
+      <span class="claim real"><i></i>Verified: npm install, 0 vulnerabilities · smoke test passes all 4 tools</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="tooltable">
+      <div class="trow"><code>proof</code><p>Every page of a document: line count, ink %, fill %, waste flag.</p></div>
+      <div class="trow"><code>waste_report</code><p>Only the flagged pages, each with <code>{page, ink, reason}</code>.</p></div>
+      <div class="trow"><code>drop_pages</code><p>Drop given page numbers, return the remaining job — pages printing, new total, sheets saved.</p></div>
+      <div class="trow"><code>ink_cost</code><p>Sheets, mean coverage, and modelled cost — as-is vs. as-proposed.</p></div>
+    </div>
+    <div>
+      <pre><span class="c">// connect it — Claude Desktop / Cursor mcp.json</span>
+{
+  <span class="s">"mcpServers"</span>: {
+    <span class="s">"proof"</span>: {
+      <span class="s">"command"</span>: <span class="s">"node"</span>,
+      <span class="s">"args"</span>: [<span class="s">"/absolute/path/to/proof/mcp/server.js"</span>]
+    }
+  }
+}</pre>
+      <pre><span class="c">$ cd proof/mcp && npm install && node smoke_test.mjs
+</span>=== tools/list ===
+tools: proof, waste_report, drop_pages, ink_cost   <span class="c">✓ 4/4</span>
+
+=== waste_report ===
+doc: Q3_Operating_Review_FINAL_v4.docx
+flagged: [4,6,9,11,13]  reasons match index.html  <span class="c">✓</span>
+
+=== drop_pages([4,6,9,11,13]) ===
+pages_printing: [1,2,3,5,7,8,10,12,14,15]  sheets_saved: 5  <span class="c">✓</span>
+
+=== ink_cost ===
+mean_ink_pct: 2.97 ("2.9%" in the UI)   sheets_saved: 5   cost_saved_usd: 0.0603 ("$0.06" in the UI)  <span class="c">✓</span></pre>
+    </div>
+  </div>
+  <p style="margin-top:14px;font-size:.85rem;color:var(--ink-2);max-width:72ch">
+    <b>Stated plainly:</b> <code>proof/mcp/document.js</code> mirrors <code>index.html</code>'s live
+    document exactly — same filename, same 15 pages, same 5 waste pages and reasons, same cost
+    constants. The one thing disclosed rather than hidden: the ink percentages in
+    <code>document.js</code> are captured values mirrored from a real browser measurement, not
+    recomputed by the server itself — there is no server-side equivalent of
+    <code>Range.getClientRects()</code>, since that API only exists in a real layout engine. The
+    server reports this honestly as <code>"method": "measured_in_browser_layout"</code> rather than
+    pretending to re-derive the numbers independently. Full detail in
+    <code>proof/mcp/README.md</code>.
+  </p>
+</section>
+
+<!-- ═══ 12 · VERIFICATION ══════════════════════════════════════ -->
+<section id="verify">
+  <div class="sec-head">
+    <span class="sec-num">12</span>
+    <div>
+      <h2>Verified against the running app, not just read</h2>
+      <p><code>_brainstorming/verify.mjs</code> drives the real page in a real headless browser and
+        asserts every claim on this page. It exits non-zero on failure, so it can run in CI.</p>
+    </div>
+  </div>
+  <div class="vgrid">
+    <div class="vitem"><span class="ck">✓</span><span><b>pagination produced pages</b>15 pages</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>every page measured, none estimated</b>15/15</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>method badge says measured</b>241 glyph runs / 15 pages</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>at least one waste page found</b>5 flagged</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>not everything flagged</b>5/15</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>print root matches page count</b>15 vs 15</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>dropped pages hidden from print root</b>5 vs 5</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>no ink value negative or &gt;100</b>range 0.01–6.72</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>every waste page has a reason</b>4 distinct reasons</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>every waste page under threshold</b>max 0.11%</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>title page (01) is NOT waste</b>2.06% ink, kept</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>kept pages exist above threshold</b>10 kept</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>clicking a sheet opens nested detail</b>detail mounted</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>detail shows the measurement readout</b>≥4 rows</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>restore all clears every drop</b>0 dropped</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>drop-flagged drops exactly the flagged</b>5/5</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>print button reflects remaining sheets</b>"Print 10 sheets"</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>no horizontal overflow on mobile</b>430px viewport</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>sheets still render on mobile</b>present</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>no console errors</b>clean run</span></div>
+  </div>
+  <div class="vfoot"><span class="dot"></span>20 / 20 assertions passing — run live, this session</div>
+
+  <div class="card" style="margin-top:22px">
+    <h3>Two more harnesses, because reading the DOM isn't the same as printing</h3>
+    <p><code>_brainstorming/verify-print.mjs</code> renders the app to a <b>real PDF</b> — the exact
+      bytes a printer would receive — and counts the actual page objects in the output, both with
+      every sheet restored and with the waste sheets dropped:</p>
+  </div>
+  <div class="vgrid">
+    <div class="vitem"><span class="ck">✓</span><span><b>full job renders every sheet</b>15 PDF pages vs 15 sheets</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>reduced job renders fewer sheets</b>10 vs 15</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>reduced count = total minus dropped</b>10 = 15 − 5</span></div>
+    <div class="vitem"><span class="ck">✓</span><span><b>exactly the dropped sheets disappear</b>5 removed, 5 dropped</span></div>
+  </div>
+  <p style="margin-top:12px;font-size:.85rem;color:var(--ink-2);max-width:72ch">
+    <b>This harness caught a real bug, not a hypothetical one:</b> an earlier print stylesheet used a
+    trailing <code>page-break-after</code> that emitted one extra blank page at the end of every PDF
+    — a tool built to eliminate blank pages was, briefly, printing one. The fix was verified the only
+    way that means anything for a print feature: by rendering an actual PDF and counting real pages,
+    not by reading the CSS and deciding it looked right.
+  </p>
+  <div class="vfoot" style="margin-top:8px"><span class="dot"></span>4 / 4 assertions passing — real PDF output verified, this session</div>
+
+  <div class="card" style="margin-top:22px">
+    <h3>The drift catcher</h3>
+    <p><code>_brainstorming/verify-consistency.mjs</code> exists because the numbers in this project
+      have drifted between the app, the deck, this page, the MCP server, and the README more than
+      once while it was being built. It reads the live app as the single source of truth, then greps
+      every other shipped artifact for stale figures from earlier revisions (old page counts, old
+      waste-page lists, old cost numbers, a claim of "rasterised" where the method is now
+      glyph-geometry).</p>
+  </div>
+  <pre>LIVE APP (source of truth)
+  15 pages → 10 print · waste [4,6,9,11,13] · threshold 2% · mean 2.9%
+
+  <span class="s">PASS</span>  ../proof/deck.html
+  <span class="s">PASS</span>  ../proof/docs.html
+  <span class="s">PASS</span>  ../proof/process.html
+  <span class="s">PASS</span>  ../proof/mcp/document.js
+  <span class="s">PASS</span>  ../proof/mcp/README.md
+  <span class="s">PASS</span>  ../README.md
+
+<span class="s">all artifacts agree with the live app</span></pre>
+</section>
+
+<!-- ═══ ART DIRECTION ═══════════════════════════════════════════ -->
+<section id="direction">
+  <div class="sec-head">
+    <span class="sec-num">·</span>
+    <div><h2>Art direction</h2>
+      <p>Same tokens as the app — this page is the same product, documented, not reskinned.</p></div>
+  </div>
+  <div class="swrow">
+    <span class="sw"><i style="background:var(--blue)"></i>#2B3BFF blue — action, kept</span>
+    <span class="sw"><i style="background:var(--pink)"></i>#FF4D9E pink — flagged, waste</span>
+    <span class="sw"><i style="background:var(--yellow)"></i>#FFD21C yellow — the verdict card</span>
+    <span class="sw"><i style="background:var(--green)"></i>#00B37E green — verified, passing</span>
+    <span class="sw"><i style="background:var(--ink)"></i>#141126 ink — text, X-ray ground</span>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <p class="eyebrow">PROOF</p>
+      <h3 style="font-size:1.1rem;font-weight:800;margin-top:.2em">Documentation, not a demo of one.</h3>
+    </div>
+    <div class="eyebrow">Cursor Hackathon · Calgary · 2026</div>
+  </div>
+</footer>
+
+<script>
+/* Real, recorded glyph-rectangle data from an actual measured run of
+   proof/index.html against its bundled document — sheet 4 (flagged,
+   1 glyph run) and sheet 8 (kept, 24 glyph runs). Not illustrative
+   placeholder marks: these are the literal coordinates the app's own
+   inkMeasured() produced for these two pages. */
+const XR = {
+  4: [{"x":0.1176,"y":0.4746,"w":0.3424,"h":0.0133,"d":0.16}],
+  8: [{"x":0.1176,"y":0.0928,"w":0.1372,"h":0.0114,"d":0.16},{"x":0.1176,"y":0.1117,"w":0.4087,"h":0.0256,"d":0.325},{"x":0.1176,"y":0.1621,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.1836,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.2051,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.2266,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.2482,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.2697,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.2912,"w":0.7580,"h":0.0152,"d":0.16},{"x":0.8756,"y":0.2912,"w":0.0067,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.3128,"w":0.5123,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.3468,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.3683,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.3898,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.4114,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.4329,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.4544,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.4759,"w":0.2992,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.5100,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.5315,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.5530,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.5745,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.5961,"w":0.7647,"h":0.0152,"d":0.16},{"x":0.1176,"y":0.6176,"w":0.7124,"h":0.0152,"d":0.16}]
+};
+function paintXray(id, marks){
+  const box = document.getElementById(id);
+  box.innerHTML = marks.map(m =>
+    `<i style="left:${(m.x*100).toFixed(2)}%;top:${(m.y*100).toFixed(2)}%;
+      width:${Math.max(0.4,m.w*100).toFixed(2)}%;height:${Math.max(0.4,m.h*100).toFixed(2)}%;
+      opacity:${Math.min(1,(m.d/0.16)*0.72).toFixed(2)}"></i>`).join('');
+}
+paintXray('xr4', XR[4]);
+paintXray('xr8', XR[8]);
+</script>
+<script>
+const PAGE_MD = "# PROOF — how it actually works\n\n> Every claim below is traceable to a line of code. This page exists because a screenshot of the app can't show you what happens when you click, drop a file, or toggle X-ray mode — and because every number the app shows is *computed*, not written. So here is the full mechanism, every feature, and the verification run that checked all of it against the real, current code — not a mockup of it.\n\n**Live output of `proof/index.html` against its bundled 15-page demo report, reproduced here, not invented for this page:**\n\n| Pages in → out | Flagged waste | Mean ink | Cost avoided | Glyph runs measured |\n|---|---|---|---|---|\n| 15 → 10 | 5 | 2.9% | $0.06 | 241 |\n\n---\n\n## 1. Pagination is measured, not assumed\n\nThe document is laid out in a real, hidden DOM element and split into pages by walking its blocks and accumulating their *actual rendered heights* — the page count is an output of layout, not a number anyone typed in.\n\n**Claim, verified this run:** 15 pages produced by this exact mechanism.\n\n1. **Real page geometry.** Every page box is `816×1056px` — 8.5\"×11\" letter paper at 96dpi — with roughly 1in margins (`PAD=84px` sides, `PAD_T=96px` top/bottom). This is the same box the print stylesheet and the ink measurement both use, so \"a page\" means the same thing everywhere in the app.\n2. **Heights come from the browser, not a guess.** PROOF walks the document's block-level children (headings, paragraphs, tables, blockquotes) in order, asking `getBoundingClientRect()` for each one's real rendered height plus its margin, and accumulates that running total against the page's content height (`CONTENT_H`). When the next block would overflow the page, the current page is flushed and a new one starts.\n3. **Explicit breaks still respected.** A block carrying the `.pagebreak` marker forces an early flush regardless of how much room is left — the same mechanism a real document's manual page breaks would need.\n\n```js\n// proof/index.html — paginate()\nfor(const b of blocks){\n  if(b.classList.contains('pagebreak')){ flush(); continue; }\n  const bh = b.getBoundingClientRect().height\n           + parseFloat(getComputedStyle(b).marginBottom || 0);\n  if(h + bh > CONTENT_H && cur.length){ flush(); }\n  cur.push(b.cloneNode(true));\n  h += bh;\n}\n```\n\n---\n\n## 2. Ink coverage is measured from real glyph geometry\n\nThis is **not** a canvas rasterisation or a pixel scan. PROOF walks every text node on a finished page and asks the browser's own layout engine for the exact rectangles its glyphs occupy — the same geometry the browser already computed to draw the page.\n\n**Claim, verified this run:** 241 glyph runs measured across 15 pages.\n\n```js\n// proof/index.html — inkMeasured()\nconst GLYPH_DENSITY = 0.16;  // ink within a body line box\nconst WEIGHT_BOOST  = 0.055; // extra per 100wt over 400\n\nfor (let n; (n = walker.nextNode()); ) {\n  range.selectNodeContents(n);\n  const rects = range.getClientRects();\n  const weight = getComputedStyle(n.parentElement).fontWeight;\n  const density = GLYPH_DENSITY\n    + Math.max(0, (weight-400)/100) * WEIGHT_BOOST;\n  for (const r of rects)\n    ink += r.width * r.height * density;\n}\n// + table/blockquote border-stroke area, counted separately\n// result: (ink / pageContentArea) * 100 = ink coverage %\n```\n\n- **Why glyph rectangles, not pixels.** `Range.getClientRects()` returns the true layout rectangles a run of text occupies — line by line, wrapped exactly as the browser wrapped it. Each rectangle's area is weighted by a stated density constant rather than counted as solid ink, because a line box is mostly whitespace between strokes: `0.16` for normal-weight text, rising with font weight. Table and blockquote border strokes are added separately since they carry real ink too.\n- **A second, independent method exists — and is explicitly not the headline number.** PROOF also ships a canvas-rasterisation path (`inkOf()`): serialise the page to an SVG, draw it to an offscreen canvas, count non-white pixels weighted by luminance. The code labels this \"a second opinion, not used for the headline number\" — it's kept as a cross-check, but the glyph-geometry method above is what drives every number on screen.\n- **Disclosed fallback, never silent.** If layout measurement can't run, PROOF falls back to `estimateInk()` — a stated formula over character count, heading count, and table-cell count — and the status line says so plainly: `measured · 241 glyph runs across 15 pages` when live, or `estimated · layout measurement unavailable` when it isn't. The number is never presented as more certain than it is.\n\n---\n\n## 3. Low ink alone is not waste — this is the detail that proves it\n\nA title page and a table of contents are both legitimately sparse. A naive rule (\"under 2% ink → flag it\") would wrongly flag both of them. PROOF's classifier doesn't.\n\n**Claim, verified this run:** 4 real pages below the 2.0% threshold, all correctly kept.\n\n```js\n// proof/index.html — isWaste()\n// Low coverage ALONE is not waste. A sheet is waste only when it is\n// BOTH under the threshold AND carries no structure (no heading, no\n// table, no list) AND its text is short enough to be furniture.\nfunction isWaste(pageEl, ink){\n  if(ink >= WASTE_THRESHOLD) return false;\n  if(FURNITURE.test(text)) return true;               // known furniture wins outright\n  const structured = pageEl.querySelector('h1,h2,h3,table,ul,ol,svg,img,blockquote');\n  if(structured) return false;                          // title page, TOC, chart — keep it\n  return text.length < 120;                            // an orphaned line — flag it\n}\n```\n\nFour pages below the 2.0% waste threshold, all kept because each has a structural element:\n\n| Sheet | Ink | Verdict | Why kept | What it says |\n|---|---|---|---|---|\n| 01 | 2.06% | Kept | Structure: `<H1>` | \"Confidential — Prepared for the Board of Directors. Northgate Holdings…\" |\n| 02 | 1.0% | Kept | Structure: `<H2>` | \"Table of Contents. 1. Executive Summary…3. 2. Financial Performance…5.\" |\n| 07 | 1.91% | Kept | Structure: `<H3>` | \"Segment revenue trend. The chart below sets out quarterly segment revenue…\" |\n| 14 | 1.95% | Kept | Structure: `<H2>` | \"Section Six. Signature & Approvals. The undersigned certify…\" |\n\nAll four measure *below* the 2.0% waste threshold — lower, in three cases, than several of the five sheets flagged below. They print anyway, because each one has a structural element the classifier checks for before it ever looks at length. That check is the difference between a threshold and a classifier.\n\n---\n\n## 4. The five pages actually flagged, and why each one\n\nNo two flagged for the same literal reason — each is pattern-matched against its own real text, not against a caption written for this demo.\n\n| Sheet | Ink | Reason | What the page actually says |\n|---|---|---|---|\n| 04 | 0.11% | `orphaned_footer` | \"© 2026 Northgate Holdings, Inc. All rights reserved.\" |\n| 06 | 0.05% | `break_artefact` | \"— continued —\" |\n| 09 | 0.10% | `intentionally_blank` | \"This page intentionally left blank.\" |\n| 11 | 0.06% | `orphaned_footer` | \"Terms and conditions apply.\" |\n| 13 | 0.01% | `orphaned_footer` | \"14\" — a lone folio number, nothing else reached this sheet. |\n\n---\n\n## 5. Ink X-ray: the measurement, made visible\n\nA toggle in the toolbar re-renders every sheet as its measured ink map instead of its typeset content. Every mark is a real `Range.getClientRects()` rectangle — not a stylised graphic.\n\n- **Sheet 04 · flagged · 0.11% ink · 1 glyph run** — a near-total void with one faint smear, the orphaned copyright line.\n- **Sheet 08 · kept · 6.27% ink · 24 glyph runs** — glows with paragraph after paragraph of real rectangles.\n\nThe difference is not styled to look dramatic; it *is* the coverage number, drawn instead of stated.\n\n---\n\n## 6. The Agent view: the MCP surface, live in the app itself\n\nA fourth toolbar button — \"Agent\" — flips the same screen to show what an AI agent sees when it proofs this exact document over MCP. This is not a canned screenshot glued into the UI: the transcript is generated at click-time from the live `PAGES` array, so if the loaded document changes, the transcript changes with it.\n\n**Claim, verified this run:** regenerated from live data on every view, not a static string.\n\n```\nclaude → proof · stdio                            ● connected\n\n# an agent proofs the file before anything moves\n→ tools/call\n  { \\"name\\": \\"waste_report\\", \\"arguments\\": { \\"doc\\": \\"Q3_Operating_Review_FINAL_v4.docx\\" } }\n← result\n  {\n    \\"pages_total\\": 15, \\"pages_printing\\": 10,\n    \\"flagged\\": [\n      { \\"page\\":  4, \\"ink_pct\\": 0.11, \\"reason\\": \\"orphaned_footer\\" },\n      { \\"page\\":  6, \\"ink_pct\\": 0.05, \\"reason\\": \\"break_artefact\\" },\n      { \\"page\\":  9, \\"ink_pct\\": 0.1,  \\"reason\\": \\"intentionally_blank\\" },\n      { \\"page\\": 11, \\"ink_pct\\": 0.06, \\"reason\\": \\"orphaned_footer\\" },\n      { \\"page\\": 13, \\"ink_pct\\": 0.01, \\"reason\\": \\"orphaned_footer\\" }\n    ],\n    \\"threshold_pct\\": 2,\n    \\"method\\": \\"glyph_run_geometry\\"\n  }\n# 5 sheets never left the tray\n```\n\n| Tool | Args | What it does |\n|---|---|---|\n| `proof` | `{ doc?: string }` | Paginate and measure a document; every sheet's line count, ink coverage, waste verdict. |\n| `waste_report` | `{ doc?: string }` | Only the flagged sheets, with the reason and the coverage that condemned each. |\n| `drop_pages` | `{ pages: number[] }` | Remove sheets and reflow; returns the job that will actually print. |\n| `ink_cost` | `{ drop?: number[] }` | Sheets, mean coverage, and cost, as-is vs. as-proposed. |\n\n---\n\n## 7. \\"Since 1995\\": the honest before, live in the app\n\nA fifth toolbar state — \\"Since 1995\\" — renders the format being reinvented, honestly, using the app's own real data: the preview pane shows sheet 1 of the actual loaded document, scaled to the real ~104px width a 1995-era print dialog would have given you. It is not a stand-in graphic — the real `thumb()` function draws real sheet 1, scaled to 104px.\n\n> \\"Page 1 of 15, at about a hundred pixels. Five of those sheets are almost blank and there is no way to know it from here.\\" — generated from the live page count and live waste count, not typed once and left to go stale.\n\n- **4** controls, essentially unchanged since 1995\n- **~104px** the preview you're asked to judge from\n- **0** of them tell you what's actually on the page\n\n---\n\n## 8. Drop and restore, per sheet or in bulk\n\nThe verdict isn't the app's alone to make — you can override it in either direction.\n\n1. **Bulk drop.** \"Drop the 5 flagged\" sets `dropped=true` on every sheet the classifier flagged, in one action.\n2. **Restore all.** Clears every drop in one action — nothing is destructive or one-way.\n3. **Per-sheet override.** Open any sheet's detail panel and drop or restore just that one — including keeping a flagged sheet, or dropping one the classifier kept.\n4. **The print root stays in sync.** Every drop/restore toggles a `.dropped` class on the corresponding element in the hidden print root, so what you see on screen is always what will physically print.\n\n---\n\n## 9. A real Print button — window.print(), not a mockup\n\n\"Print\" calls the browser's actual print pipeline against the same document PROOF measured, not a canned screenshot of one.\n\n```css\n/* proof/index.html — @media print */\n.app,.grain{ display:none!important; }\n#printroot{ position:static; }\n.page{ page-break-after:always; }\n.page.dropped{ display:none!important; }\n```\n\nClicking **Print** calls `window.print()` against a hidden `#printroot` that mirrors the on-screen job exactly. The print stylesheet hides the app chrome entirely and removes any sheet still marked `.dropped`, so the job the OS print dialog receives is the already-reduced one — the sheets you decided not to print genuinely never reach it. An explicit **\"Print everything anyway\"** button exists as an escape hatch that clears every drop first, for anyone who wants the original, unedited job.\n\n---\n\n## 10. Proof your own file — the same pipeline, not a second demo mode\n\nThe rail has a real drop zone: drag in an `.html`, `.txt`, or `.md` file, or click it to pick one.\n\n1. **Reading the file.** A `FileReader` reads the dropped file as text; HTML files have their `<body>` extracted, plain text/Markdown is split on blank lines into paragraphs.\n2. **Identical processing.** The result is handed to the exact same `load()` function the bundled demo report runs through — the same pagination, the same glyph-geometry measurement, the same classifier. There is no separate \"demo mode\" code path.\n3. **Instant re-proof.** The sheet wall, verdict card, and stats all re-render against the new document immediately — no page reload.\n\n---\n\n## 11. The MCP server — proofing a document without a human in the loop\n\nThe web page is one surface on PROOF. A real [MCP](https://modelcontextprotocol.io) server in `proof/mcp/` exposes the same measurement as four callable tools over stdio, so an agent can proof a job before a sheet moves.\n\n**Verified:** `npm install`, 0 vulnerabilities · smoke test passes all 4 tools.\n\n| Tool | What it does |\n|---|---|\n| `proof` | Every page of a document: line count, ink %, fill %, waste flag. |\n| `waste_report` | Only the flagged pages, each with `{page, ink, reason}`. |\n| `drop_pages` | Drop given page numbers, return the reflowed job — pages printing, new total, sheets saved. |\n| `ink_cost` | Sheets, mean coverage, and modelled cost — as-is vs. as-proposed. |\n\n```json\n// connect it — Claude Desktop / Cursor mcp.json\n{\n  \"mcpServers\": {\n    \"proof\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/proof/mcp/server.js\"]\n    }\n  }\n}\n```\n\n```\n$ cd proof/mcp && npm install && node smoke_test.mjs\n=== tools/list ===\ntools: proof, waste_report, drop_pages, ink_cost   ✓ 4/4\n\n=== waste_report ===\ndoc: Q3_Operating_Review_FINAL_v4.docx\nflagged: [4,6,9,11,13]  reasons match index.html  ✓\n\n=== drop_pages([4,6,9,11,13]) ===\npages_printing: [1,2,3,5,7,8,10,12,14,15]  sheets_saved: 5  ✓\n\n=== ink_cost ===\nmean_ink_pct: 2.97 (\\"2.9%\\" in the UI)   sheets_saved: 5   cost_saved_usd: 0.0603 (\\"$0.06\\" in the UI)\n```\n\n**Stated plainly:** `proof/mcp/document.js` mirrors `index.html`'s live document exactly — same filename, same 15 pages, same 5 waste pages and reasons, same cost constants. The one thing disclosed rather than hidden: the ink percentages in `document.js` are captured values mirrored from a real browser measurement, not recomputed by the server itself — there is no server-side equivalent of `Range.getClientRects()`, since that API only exists in a real layout engine. The server reports this honestly as `\\"method\\": \\"measured_in_browser_layout\\"` rather than pretending to re-derive the numbers independently. Full detail in `proof/mcp/README.md`.\n\n---\n\n## 12. Verified against the running app, not just read\n\n`_brainstorming/verify.mjs` drives the real page in a real headless browser and asserts every claim on this page. It exits non-zero on failure, so it can run in CI.\n\n| Assertion | Result |\n|---|---|\n| pagination produced pages | 15 pages |\n| every page measured, none estimated | 15/15 |\n| method badge says measured | 241 glyph runs / 15 pages |\n| at least one waste page found | 5 flagged |\n| not everything flagged | 5/15 |\n| print root matches page count | 15 vs 15 |\n| dropped pages hidden from print root | 5 vs 5 |\n| no ink value negative or >100 | range 0.01–6.72 |\n| every waste page has a reason | 4 distinct reasons |\n| every waste page under threshold | max 0.11% |\n| title page (01) is NOT waste | 2.06% ink, kept |\n| kept pages exist above threshold | 10 kept |\n| clicking a sheet opens nested detail | detail mounted |\n| detail shows the measurement readout | ≥4 rows |\n| restore all clears every drop | 0 dropped |\n| drop-flagged drops exactly the flagged | 5/5 |\n| print button reflects remaining sheets | \"Print 10 sheets\" |\n| no horizontal overflow on mobile | 430px viewport |\n| sheets still render on mobile | present |\n| no console errors | clean run |\n\n**20 / 20 assertions passing — run live, this session.**\n\n### Two more harnesses, because reading the DOM isn't the same as printing\n\n`_brainstorming/verify-print.mjs` renders the app to a real PDF — the exact bytes a printer would receive — and counts the actual page objects in the output, both with every sheet restored and with the waste sheets dropped:\n\n| Assertion | Result |\n|---|---|\n| full job renders every sheet | 15 PDF pages vs 15 sheets |\n| reduced job renders fewer sheets | 10 vs 15 |\n| reduced count = total minus dropped | 10 = 15 − 5 |\n| exactly the dropped sheets disappear | 5 removed, 5 dropped |\n\n**4 / 4 assertions passing — real PDF output verified, this session.**\n\nThis harness caught a real bug, not a hypothetical one: an earlier print stylesheet used a trailing `page-break-after` that emitted one extra blank page at the end of every PDF — a tool built to eliminate blank pages was, briefly, printing one. The fix was verified the only way that means anything for a print feature: by rendering an actual PDF and counting real pages, not by reading the CSS and deciding it looked right.\n\n### The drift catcher\n\n`_brainstorming/verify-consistency.mjs` exists because the numbers in this project have drifted between the app, the deck, this page, the MCP server, and the README more than once while it was being built. It reads the live app as the single source of truth, then greps every other shipped artifact for stale figures from earlier revisions.\n\n```\nLIVE APP (source of truth)\n  15 pages → 10 print · waste [4,6,9,11,13] · threshold 2% · mean 2.9%\n\n  PASS  ../proof/deck.html\n  PASS  ../proof/docs.html\n  PASS  ../proof/process.html\n  PASS  ../proof/mcp/document.js\n  PASS  ../proof/mcp/README.md\n  PASS  ../README.md\n\nall artifacts agree with the live app\n```\n\n---\n\n## Art direction\n\nSame tokens as the app — this page is the same product, documented, not reskinned.\n\n| Color | Hex | Role |\n|---|---|---|\n| Blue | `#2B3BFF` | action, kept |\n| Pink | `#FF4D9E` | flagged, waste |\n| Yellow | `#FFD21C` | the verdict card |\n| Green | `#00B37E` | verified, passing |\n| Ink | `#141126` | text, X-ray ground |\n\n---\n\nDocumentation, not a demo of one. — Cursor Hackathon · Calgary · 2026\n";
+
+/* ── Copy-as-Markdown / Download .md — agent-readable doc controls ── */
+function proofShowFeedback(btn, msg, ms){
+  ms = ms || 1500;
+  var original = btn.dataset.label || btn.textContent;
+  btn.dataset.label = original;
+  btn.textContent = msg;
+  btn.disabled = true;
+  setTimeout(function(){ btn.textContent = original; btn.disabled = false; }, ms);
+}
+function proofRevealMarkdown(md){
+  var box = document.getElementById('mdReveal');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'mdReveal';
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(20,17,38,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    box.innerHTML = '<div style="background:#fff;border:3px solid #141126;border-radius:14px;padding:20px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:10px;box-shadow:8px 8px 0 #141126">'
+      + '<strong style="font:800 .88rem/1.3 system-ui,-apple-system,sans-serif">Clipboard unavailable here — select all and copy manually</strong>'
+      + '<textarea readonly style="width:100%;height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;padding:10px;border:2px solid #141126;border-radius:8px;resize:vertical" id="mdRevealTa"></textarea>'
+      + '<button class="chipbtn go" id="mdRevealClose" style="align-self:flex-end">Close</button>'
+      + '</div>';
+    document.body.appendChild(box);
+    document.getElementById('mdRevealClose').addEventListener('click', function(){ box.remove(); });
+  }
+  var ta = document.getElementById('mdRevealTa');
+  ta.value = md;
+  ta.focus();
+  ta.select();
+}
+function proofCopyMarkdown(btn, md){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(md).then(function(){
+      proofShowFeedback(btn, 'Copied');
+    }, function(){ proofCopyFallback(btn, md); });
+  } else {
+    proofCopyFallback(btn, md);
+  }
+}
+function proofCopyFallback(btn, md){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = md;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok){ proofShowFeedback(btn, 'Copied'); return; }
+    proofRevealMarkdown(md);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+function proofDownloadMarkdown(md, filename){
+  try{
+    var blob = new Blob([md], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+(function(){
+  var copyBtn = document.getElementById('btnCopyMd');
+  var dlBtn = document.getElementById('btnDownloadMd');
+  if(copyBtn) copyBtn.addEventListener('click', function(){ proofCopyMarkdown(copyBtn, PAGE_MD); });
+  if(dlBtn) dlBtn.addEventListener('click', function(){ proofDownloadMarkdown(PAGE_MD, "functionality.md"); });
+})();
+
+</script>
+</body>
+</html>

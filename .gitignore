@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# OS cruft
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Playwright (screenshot harness in _brainstorming/capture.mjs)
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+.playwright-mcp/
+
+# Ad-hoc verification screenshots (not the submission capture set)
+shots-persona/
+
+# Editor / scratch
+*.swp
+*.log
+.env
+.env.*

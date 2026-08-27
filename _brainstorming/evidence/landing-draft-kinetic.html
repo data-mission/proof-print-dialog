@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bty</title>
+<meta name="description" content="You use them every day. You've never read what's inside.">
+<style>
+/* ============================================================
+   bty landing — draft 2 · KINETIC EDITORIAL
+   Stark ground, ink type at scale, one electric accent.
+   Scroll is the instrument: JS-driven scrub, pinned decode.
+   Fully static · zero external resources.
+   ============================================================ */
+:root{
+  --paper:#fbfbfa;
+  --ink:#0b0b0e;
+  --ink-soft:#2c2c33;
+  --mid:#70707a;
+  --ghost:#c9c9d2;
+  --accent:#5326f2;      /* electric ultraviolet */
+  --hair:#0b0b0e;
+  --sans:-apple-system,"SF Pro Display","Helvetica Neue",Helvetica,Arial,ui-sans-serif,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --gut:clamp(18px,4vw,64px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:clip}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:17px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+a{color:inherit}
+::selection{background:var(--accent);color:#fff}
+
+/* ---------- utility type ---------- */
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.mono.accent{color:var(--accent)}
+.rule{border:0;border-top:1px solid var(--hair)}
+.section{padding:clamp(84px,14vh,160px) var(--gut)}
+.eyebrow{display:flex;align-items:baseline;gap:14px;margin-bottom:clamp(28px,5vh,56px)}
+.eyebrow .num{font-family:var(--mono);font-weight:700;font-size:clamp(30px,6vw,54px);letter-spacing:-.02em;color:var(--accent)}
+.eyebrow .lab{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--mid)}
+.big{
+  font-weight:800;
+  font-size:clamp(34px,8.6vw,104px);
+  line-height:.98;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.big em{font-style:normal;color:var(--accent)}
+.body-md{max-width:34em;font-size:clamp(16px,2.2vw,20px);color:var(--ink-soft)}
+
+/* ---------- CTA ---------- */
+.cta{
+  display:inline-block;
+  background:var(--ink);color:#fff;
+  font-weight:700;font-size:16px;letter-spacing:.01em;
+  padding:18px 30px;border:2px solid var(--ink);
+  text-decoration:none;
+  transition:background .18s ease,color .18s ease;
+}
+.cta:hover,.cta:focus-visible{background:var(--accent);border-color:var(--accent);color:#fff;outline:none}
+.cta:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.cta.ghost{background:transparent;color:var(--ink)}
+.cta.ghost:hover{background:var(--ink);color:#fff}
+.cta-row{margin-top:clamp(36px,6vh,64px)}
+
+/* ---------- fixed progress hairline ---------- */
+#bar{
+  position:fixed;top:0;left:0;width:100%;height:3px;
+  background:var(--accent);transform-origin:0 50%;transform:scaleX(0);
+  z-index:50;
+}
+.no-js #bar{display:none}
+
+/* ============================================================
+   ACT I — pinned decode (hero + label wall, scroll-scrubbed)
+   ============================================================ */
+#decode{position:relative;height:430vh}
+#decode .pin{
+  position:sticky;top:0;height:100vh;height:100svh;
+  display:flex;flex-direction:column;
+  padding:calc(var(--gut) * .9) var(--gut);
+  padding-bottom:clamp(96px,16vh,170px); /* reserved strip for the counter */
+  overflow:clip;
+}
+.frame-line{margin-top:clamp(10px,4vh,48px)}
+.frame-line h1{
+  font-weight:800;
+  font-size:clamp(38px,9.6vw,118px);
+  line-height:.96;letter-spacing:-.04em;text-wrap:balance;
+}
+.frame-line h1 .l2{color:var(--accent)}
+.frame-line .kick{margin-top:14px;color:var(--mid)}
+/* word rise on load */
+.js .frame-line .wr{display:inline-block;transform:translateY(110%);opacity:0;animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(var(--i) * 70ms)}
+.js .frame-line .wm{display:inline-block;overflow:clip;vertical-align:bottom}
+@keyframes rise{to{transform:none;opacity:1}}
+
+/* label wall */
+.wall{
+  margin-top:auto;margin-bottom:auto;
+  padding-top:clamp(18px,4vh,40px);
+  transition:opacity .35s ease,filter .35s ease;
+}
+.wall .src{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--mid)}
+.wall p{
+  font-weight:800;
+  font-size:clamp(19px,4.6vw,52px);
+  line-height:1.12;letter-spacing:-.025em;
+  text-transform:uppercase;
+  word-spacing:.05em;
+}
+.w{transition:color .45s ease,opacity .45s ease}
+/* final states are the DEFAULT (no-js / reduced-motion complete page) */
+.w[data-base]{color:var(--ghost)}
+.w:not([data-base]){color:var(--accent)}
+/* armed initial states under js */
+.js:not(.rm) .w{color:var(--ink)}
+.js:not(.rm) .w.off{color:var(--ghost)}
+.js:not(.rm) .w.lit{color:var(--accent)}
+.wall .comma{color:var(--ghost)}
+
+/* remaining counter */
+#count{
+  position:absolute;right:var(--gut);bottom:calc(var(--gut) * .6);
+  font-family:var(--mono);font-weight:700;
+  font-size:clamp(64px,16vw,180px);line-height:1;letter-spacing:-.04em;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+  pointer-events:none;
+}
+#count .of{display:block;font-size:12px;letter-spacing:.22em;color:var(--mid);text-align:right}
+.js:not(.rm) #decode.verdict-on #count{opacity:0;transition:opacity .3s ease}
+
+/* verdict — static flow by default; overlay under js */
+#verdict{padding-top:clamp(24px,5vh,48px)}
+.js:not(.rm) #verdict{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:var(--gut);
+  opacity:0;transform:translateY(28px);
+  transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);
+  pointer-events:none;
+}
+.js:not(.rm) #decode.verdict-on #verdict{opacity:1;transform:none;pointer-events:auto}
+.js:not(.rm) #decode.verdict-on .wall{opacity:.07;filter:blur(1px)}
+.js:not(.rm) #decode.verdict-on .frame-line{opacity:0}
+#verdict .v-sentence{
+  font-weight:800;font-size:clamp(30px,6.8vw,84px);
+  line-height:1.02;letter-spacing:-.035em;max-width:14em;text-wrap:balance;
+}
+#verdict .v-sentence em{font-style:normal;color:var(--accent)}
+#verdict .exon{margin-top:22px;font-family:var(--mono);font-size:clamp(13px,1.9vw,17px);letter-spacing:.02em;color:var(--mid);text-transform:none;max-width:36em}
+#verdict .thats{margin-top:clamp(22px,4vh,40px);font-weight:800;font-size:clamp(22px,4.4vw,44px);letter-spacing:-.03em}
+
+/* ============================================================
+   chorus figure — outline, not a photo, not a blob
+   ============================================================ */
+.confession{
+  display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;
+  margin-top:clamp(48px,9vh,110px);
+}
+.confession .lines{max-width:30em}
+.confession .who{margin-bottom:18px;color:var(--mid)}
+.confession blockquote{
+  font-weight:600;font-size:clamp(20px,3.4vw,30px);
+  line-height:1.28;letter-spacing:-.02em;text-wrap:pretty;
+  border-left:3px solid var(--accent);padding-left:18px;
+  margin-bottom:16px;
+}
+.confession blockquote:last-of-type{margin-bottom:0}
+.figure{position:relative;width:clamp(96px,16vw,168px);flex:none}
+.figure svg{display:block;width:100%;height:auto;
+  -webkit-mask-image:linear-gradient(#000 72%,transparent 100%);
+  mask-image:linear-gradient(#000 72%,transparent 100%);
+}
+.figure .fnum{
+  position:absolute;top:-14px;right:-6px;
+  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.14em;color:var(--accent);
+}
+.disclosure{margin-top:26px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--mid);max-width:38em}
+.disclosure u{text-decoration-color:var(--accent);text-underline-offset:3px}
+
+/* ---------- reveals (IO) ---------- */
+.js:not(.rm) .rv{opacity:0;transform:translateY(34px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0) * 90ms)}
+.js:not(.rm) .rv.in{opacity:1;transform:none}
+/* kinetic slide (rAF-driven translateX) */
+.kwrap{overflow:clip}
+.k{will-change:transform;display:inline-block}
+
+/* ============================================================
+   moment 02 — the scale / network
+   ============================================================ */
+#net-wrap{margin:clamp(30px,6vh,60px) 0 10px}
+#net{display:block;width:100%;height:auto}
+#net .edge{stroke:var(--ink);stroke-width:1;opacity:.8}
+#net .node{fill:var(--ink)}
+#net .hub{fill:var(--accent)}
+.net-cap{margin-top:10px;color:var(--mid)}
+
+/* ============================================================
+   moment 03 — steps
+   ============================================================ */
+.steps{display:flex;flex-direction:column;gap:0;margin-top:8px}
+.step{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:26px 0;border-top:1px solid var(--hair)}
+.step:last-child{border-bottom:1px solid var(--hair)}
+.step .n{font-family:var(--mono);font-weight:700;font-size:clamp(40px,9vw,88px);line-height:1;letter-spacing:-.03em;color:var(--accent)}
+.step h3{font-weight:800;font-size:clamp(22px,4.4vw,40px);letter-spacing:-.03em;line-height:1.05}
+.step p{margin-top:6px;color:var(--mid);font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+
+/* ============================================================
+   moment 04 — timeline
+   ============================================================ */
+.tl{position:relative;margin-top:10px;padding-left:26px}
+.tl .spine{position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--ghost)}
+.tl .spine i{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--accent);transform-origin:0 0;transform:scaleY(1)}
+.js:not(.rm) .tl .spine i{transform:scaleY(var(--p,0))}
+.tl-item{position:relative;padding:22px 0}
+.tl-item::before{content:"";position:absolute;left:-26px;top:34px;width:14px;height:14px;background:var(--paper);border:3px solid var(--accent)}
+.tl-item .when{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.tl-item .what{margin-top:6px;font-weight:700;font-size:clamp(19px,3.2vw,28px);letter-spacing:-.02em;max-width:26em}
+.tl-item .tag{margin-left:10px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--mid);text-transform:uppercase}
+
+/* ============================================================
+   moment 05 — anti-claim
+   ============================================================ */
+.anti{
+  font-weight:800;font-size:clamp(28px,6.4vw,72px);
+  line-height:1.04;letter-spacing:-.035em;max-width:16em;text-wrap:balance;
+}
+.anti .no{color:var(--mid)}
+.price{margin-top:clamp(30px,5vh,52px);font-family:var(--mono);font-size:clamp(13px,2vw,16px);letter-spacing:.08em;color:var(--ink-soft)}
+
+/* ============================================================
+   moment 06 — close
+   ============================================================ */
+.close-line{
+  font-weight:800;font-size:clamp(40px,10.4vw,132px);
+  line-height:.97;letter-spacing:-.045em;text-wrap:balance;
+}
+.close-line em{font-style:normal;color:var(--accent)}
+.close-meta{display:flex;flex-wrap:wrap;gap:18px 34px;align-items:baseline;margin-top:clamp(36px,7vh,72px)}
+.free{font-weight:800;font-size:clamp(56px,14vw,150px);letter-spacing:-.05em;line-height:1}
+.close-meta .mono{color:var(--mid)}
+.end-rule{margin-top:clamp(40px,8vh,90px)}
+
+/* ---------- desktop composition ---------- */
+@media (min-width:900px){
+  .wall{padding-right:clamp(220px,24vw,340px)} /* reserved counter column */
+  .confession{grid-template-columns:minmax(0,1fr) auto;max-width:1100px}
+  .split{display:grid;grid-template-columns:5fr 7fr;gap:clamp(24px,4vw,72px);align-items:start}
+  .steps{max-width:1100px}
+  #verdict{max-width:none}
+}
+
+/* ---------- reduced motion: final states, zero motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<div id="bar" aria-hidden="true"></div>
+
+<!-- ====================================================== -->
+<!-- ACT I · pinned decode : hero frame + label wall scrub  -->
+<!-- ====================================================== -->
+<section id="decode" aria-label="The label, decoded">
+  <div class="pin">
+    <header class="frame-line" id="frame">
+      <h1>
+        <span class="wm"><span class="wr" style="--i:0">You&nbsp;use&nbsp;them</span></span>
+        <span class="wm"><span class="wr" style="--i:1">every&nbsp;day.</span></span><br>
+        <span class="l2">
+          <span class="wm"><span class="wr" style="--i:2">You've&nbsp;never&nbsp;read</span></span>
+          <span class="wm"><span class="wr" style="--i:3">what's&nbsp;inside.</span></span>
+        </span>
+      </h1>
+      <p class="kick mono">Here's one you probably own — keep scrolling</p>
+    </header>
+
+    <div class="wall" id="wall" aria-label="CeraVe Moisturizing Cream ingredient list">
+      <div class="src mono"><span>CeraVe Moisturizing Cream</span><span>Ingredients</span></div>
+      <p>
+        <span class="w" data-base>Aqua</span><span class="comma">, </span><span class="w" data-base>Glycerin</span><span class="comma">, </span><span class="w" data-base>Cetearyl&nbsp;Alcohol</span><span class="comma">, </span><span class="w" data-base>Caprylic/Capric&nbsp;Triglyceride</span><span class="comma">, </span><span class="w" data-base>Cetyl&nbsp;Alcohol</span><span class="comma">, </span><span class="w" data-base>Ceteareth-20</span><span class="comma">, </span><span class="w" data-base>Petrolatum</span><span class="comma">, </span><span class="w" data-base>Potassium&nbsp;Phosphate</span><span class="comma">, </span><span class="w">Ceramide&nbsp;NP</span><span class="comma">, </span><span class="w">Ceramide&nbsp;AP</span><span class="comma">, </span><span class="w">Ceramide&nbsp;EOP</span><span class="comma">, </span><span class="w" data-base>Carbomer</span><span class="comma">, </span><span class="w" data-base>Dimethicone</span><span class="comma">, </span><span class="w" data-base>Behentrimonium&nbsp;Methosulfate</span><span class="comma">, </span><span class="w" data-base>Sodium&nbsp;Lauroyl&nbsp;Lactylate</span><span class="comma">, </span><span class="w">Sodium&nbsp;Hyaluronate</span><span class="comma">, </span><span class="w">Cholesterol</span><span class="comma">, </span><span class="w" data-base>Phenoxyethanol</span><span class="comma">, </span><span class="w" data-base>Disodium&nbsp;EDTA</span><span class="comma">, </span><span class="w" data-base>Dipotassium&nbsp;Phosphate</span><span class="comma">, </span><span class="w" data-base>Tocopherol</span><span class="comma">, </span><span class="w">Phytosphingosine</span><span class="comma">, </span><span class="w" data-base>Xanthan&nbsp;Gum</span><span class="comma">, </span><span class="w" data-base>Ethylhexylglycerin</span>
+      </p>
+    </div>
+
+    <div id="count" aria-hidden="true"><span class="of">ingredients&nbsp;that&nbsp;matter</span><span id="countn">06</span></div>
+
+    <div id="verdict">
+      <p class="v-sentence">CeraVe Moisturizing Cream reads as 24 ingredients. <em>Eighteen of them are water, thickeners and preservatives.</em></p>
+      <p class="exon">Nobody reads it. It's twenty-four words of Latin on the back of a bottle.</p>
+      <p class="thats">That's one. You own about thirty.</p>
+      <div class="cta-row"><a class="cta" href="#get">Get bty — free</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- moment 01 · chorus character 1 -->
+<section class="section" aria-label="Four cleansers">
+  <!-- CHORUS-1 video mount: stacked-alpha AV1, chest-up, muted, captions as DOM below. Replace .figure svg. -->
+  <div class="confession rv">
+    <div class="lines">
+      <p class="who mono">01 · Four cleansers</p>
+      <blockquote>"There's — there's four cleansers under my sink. Three of them I used maybe twice."</blockquote>
+      <blockquote>"I couldn't tell you what's wrong with them. They just weren't it."</blockquote>
+      <blockquote>"I'd like to actually know. Not guess."</blockquote>
+      <p class="disclosure">Performed by synthetic presenters. The words are real — <u>tap any line to see where they came from</u>.</p>
+      <!-- tap-to-source mount: research-panel quotes pending -->
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·01</span>
+      <svg viewBox="0 0 120 150"><circle cx="60" cy="42" r="26" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M14 150 C14 108 40 92 60 92 C80 92 106 108 106 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><circle cx="60" cy="42" r="33" fill="none" stroke="#5326f2" stroke-width="1.5" stroke-dasharray="3 6"/></svg>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ====================================================== -->
+<!-- moment 02 · the scale                                  -->
+<!-- ====================================================== -->
+<section class="section" aria-label="The scale">
+  <div class="eyebrow rv"><span class="num">02</span><span class="lab">The scale</span></div>
+  <div class="kwrap"><h2 class="big k" data-k="-1">Your 10th product creates <em>9 new connections.</em></h2></div>
+  <p class="body-md rv" style="margin-top:26px">Each scan makes every previous scan more valuable.</p>
+
+  <div id="net-wrap" class="rv">
+    <svg id="net" viewBox="0 0 1000 520" role="img" aria-label="A network of products connected by shared ingredients"></svg>
+    <p class="net-cap mono">The one you just read, meeting the rest of your shelf.</p>
+  </div>
+
+  <!-- CHORUS-2 video mount: stacked-alpha AV1, chest-up, muted, captions as DOM below. Replace .figure svg. -->
+  <div class="confession rv">
+    <div class="lines">
+      <p class="who mono">02 · Four hundred dollars</p>
+      <blockquote>"I added it up once. Four hundred dollars. Not on stuff I hated. On stuff I just… stopped reaching for."</blockquote>
+      <blockquote>"And I couldn't tell you which one it'd be. Not standing in the shop. Not holding it."</blockquote>
+      <!-- direction (not visitor copy): no spoken wish — the exhale is the wish -->
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·02</span>
+      <svg viewBox="0 0 120 150"><circle cx="58" cy="44" r="25" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M12 150 C14 110 38 94 58 94 C80 94 108 112 106 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M33 30 C40 16 76 14 84 30" fill="none" stroke="#5326f2" stroke-width="2"/></svg>
+    </div>
+  </div>
+
+  <div class="cta-row rv"><a class="cta ghost" href="#get">See all your connections — free</a></div>
+</section>
+
+<hr class="rule">
+
+<!-- ====================================================== -->
+<!-- moment 03 · the how                                    -->
+<!-- ====================================================== -->
+<section class="section" aria-label="How it works">
+  <div class="eyebrow rv"><span class="num">03</span><span class="lab">The how</span></div>
+  <div class="kwrap"><h2 class="big k" data-k="1">One photo. <em>Five seconds.</em></h2></div>
+
+  <div class="steps" style="margin-top:clamp(30px,6vh,56px)">
+    <div class="step rv" style="--i:0"><span class="n">1</span><div><h3>Photograph the back label</h3><p>5-second framing</p></div></div>
+    <div class="step rv" style="--i:1"><span class="n">2</span><div><h3>See what's inside — in words you understand</h3><p>INCI decoded</p></div></div>
+    <div class="step rv" style="--i:2"><span class="n">3</span><div><h3>Watch your products connect</h3><p>Cross-reference threads appear</p></div></div>
+  </div>
+
+  <!-- CHORUS-3 video mount: stacked-alpha AV1 + separately shot real hand insert. Replace .figure svg. -->
+  <div class="confession rv">
+    <div class="lines">
+      <p class="who mono">03 · That's it?</p>
+      <blockquote>"…That's it?"</blockquote>
+      <!-- direction (not visitor copy): lifts phone toward a bottle, holds, lowers it; the only direct address on the page -->
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·03</span>
+      <svg viewBox="0 0 120 150"><circle cx="62" cy="40" r="24" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M16 150 C18 110 42 90 62 90 C82 90 108 110 108 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><rect x="86" y="70" width="16" height="28" fill="none" stroke="#5326f2" stroke-width="2"/></svg>
+    </div>
+  </div>
+
+  <div class="cta-row rv"><a class="cta ghost" href="#get">Start scanning — free</a></div>
+</section>
+
+<hr class="rule">
+
+<!-- ====================================================== -->
+<!-- moment 04 · the timeline                               -->
+<!-- ====================================================== -->
+<section class="section" aria-label="The timeline">
+  <div class="eyebrow rv"><span class="num">04</span><span class="lab">The timeline</span></div>
+  <div class="kwrap"><h2 class="big k" data-k="-1">It gets smarter <em>the more you scan.</em></h2></div>
+
+  <div class="tl" id="tl" style="margin-top:clamp(34px,6vh,60px)">
+    <div class="spine"><i id="spinefill"></i></div>
+    <div class="tl-item rv" style="--i:0"><p class="when">Scan 1</p><p class="what">34 ingredients decoded to plain language<span class="tag">instant</span></p></div>
+    <div class="tl-item rv" style="--i:1"><p class="when">Scan 2</p><p class="what">Cross-references appear<span class="tag">instant</span></p></div>
+    <div class="tl-item rv" style="--i:2"><p class="when">Week 4</p><p class="what">Patterns emerge — what you finish vs. what you toss</p></div>
+    <div class="tl-item rv" style="--i:3"><p class="when">Over time</p><p class="what">Verdicts arrive — know what to skip before you buy</p></div>
+  </div>
+
+  <!-- CHORUS-4 video mount: stacked-alpha AV1, long-form clip (~14s). Replace .figure svg. -->
+  <div class="confession rv">
+    <div class="lines">
+      <p class="who mono">04 · Ten out of ten for who</p>
+      <blockquote>"I want to walk into a shop and just — know. That's it. That's the whole thing."</blockquote>
+      <blockquote>"I tried one of those before. It gave everything a number out of ten. Ten out of ten for <em>who?</em>"</blockquote>
+      <blockquote>"I don't want a grade. I want something that remembers what I've already tried."</blockquote>
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·04</span>
+      <svg viewBox="0 0 120 150"><circle cx="58" cy="42" r="25" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M12 150 C16 108 38 92 58 92 C78 92 104 108 104 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><line x1="40" y1="40" x2="76" y2="40" stroke="#5326f2" stroke-width="2"/></svg>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ====================================================== -->
+<!-- moment 05 · the trust                                  -->
+<!-- ====================================================== -->
+<section class="section" aria-label="The trust">
+  <div class="eyebrow rv"><span class="num">05</span><span class="lab">The trust</span></div>
+  <p class="anti rv">We <span class="no">don't score</span> your products. We <span class="no">don't tell you what's "clean."</span> We show you what's in them — and over time, learn what works for you. <em style="font-style:normal;color:var(--accent)">Not overnight. Over scans.</em></p>
+
+  <!-- CHORUS-5 video mount: stacked-alpha AV1, long-form clip (~16s), do not trim. Replace .figure svg. -->
+  <div class="confession rv">
+    <div class="lines">
+      <p class="who mono">05 · Nobody had a reason</p>
+      <blockquote>"Two years on T. My face changed. Everything I owned stopped working — all of it, at once."</blockquote>
+      <blockquote>"And I asked. I asked <em>everyone.</em> Everybody had an opinion. Nobody had a reason."</blockquote>
+      <blockquote>"I didn't need someone to tell me what's clean. I needed someone to tell me what changed."</blockquote>
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·05</span>
+      <svg viewBox="0 0 120 150"><circle cx="60" cy="42" r="25" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M14 150 C16 110 40 92 60 92 C80 92 106 110 106 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><circle cx="60" cy="42" r="32" fill="none" stroke="#5326f2" stroke-width="2"/></svg>
+    </div>
+  </div>
+
+  <p class="price rv">Free to start — 5 scans/day. $19.99/year for unlimited.</p>
+  <div class="cta-row rv"><a class="cta" href="#get">Get bty — free</a></div>
+</section>
+
+<hr class="rule">
+
+<!-- ====================================================== -->
+<!-- moment 06 · the close                                  -->
+<!-- ====================================================== -->
+<section class="section" id="get" aria-label="The close">
+  <div class="eyebrow rv"><span class="num">06</span><span class="lab">The close</span></div>
+
+  <!-- CHORUS-6 video mount: stacked-alpha AV1. Replace .figure svg. -->
+  <div class="confession rv" style="margin-top:0;margin-bottom:clamp(48px,9vh,100px)">
+    <div class="lines">
+      <p class="who mono">06 · Forty years</p>
+      <blockquote>"I've been buying this stuff since I was fifteen. Forty-three years."</blockquote>
+      <blockquote>"Nobody ever told me there was anything to know."</blockquote>
+    </div>
+    <div class="figure" aria-hidden="true">
+      <span class="fnum">CH·06</span>
+      <svg viewBox="0 0 120 150"><circle cx="59" cy="43" r="25" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M13 150 C15 110 39 93 59 93 C79 93 105 110 105 150" fill="none" stroke="#0b0b0e" stroke-width="2.5"/><path d="M34 55 C42 64 76 64 84 55" fill="none" stroke="#5326f2" stroke-width="2"/></svg>
+    </div>
+  </div>
+
+  <p class="close-line rv">"I finally know what actually works for my skin — <em>and why.</em>"</p>
+
+  <div class="close-meta rv">
+    <span class="free">Free.</span>
+    <span class="mono">Coming to iOS and Android</span>
+    <span class="mono">No account needed to start scanning</span>
+  </div>
+
+  <hr class="rule end-rule">
+  <p class="mono" style="margin-top:18px;color:var(--mid)">bty — getbty.com</p>
+</section>
+
+<script>
+/* Kinetic engine: rAF loop reading scrollY drives every scrub.
+   IntersectionObserver drives reveals. Bails under reduced motion. */
+(function(){
+  var html=document.documentElement;
+  html.classList.remove('no-js');
+  var RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(RM){html.classList.add('rm');return}   /* final states, zero motion */
+  html.classList.add('js');
+
+  var decode=document.getElementById('decode'),
+      frame=document.getElementById('frame'),
+      wallP=document.querySelectorAll('#wall .w'),
+      base=[],real=[],i;
+  for(i=0;i<wallP.length;i++){(wallP[i].hasAttribute('data-base')?base:real).push(wallP[i])}
+  var countn=document.getElementById('countn'),
+      bar=document.getElementById('bar'),
+      spine=document.getElementById('spinefill'),
+      tl=document.getElementById('tl');
+
+  /* kinetic slide elements */
+  var kin=[].slice.call(document.querySelectorAll('.k')).map(function(el){
+    return {el:el,dir:parseFloat(el.getAttribute('data-k'))||1};
+  });
+
+  /* -------- network build (deterministic coords) -------- */
+  var NX=[[500,250],[160,90],[320,60],[520,70],[720,80],[880,120],[120,230],[260,180],[420,160],[640,170],[820,220],[940,300],[150,370],[300,330],[460,360],[620,330],[780,360],[900,430],[220,470],[380,460],[540,470],[700,460],[840,490],[80,150]];
+  var NE=[[0,8],[0,9],[0,14],[0,15],[0,7],[0,20],[1,2],[2,3],[3,4],[4,5],[1,7],[2,8],[3,9],[4,9],[5,10],[6,7],[7,8],[8,9],[9,10],[10,11],[6,12],[7,13],[8,14],[9,15],[10,16],[11,17],[12,13],[13,14],[14,15],[15,16],[16,17],[12,18],[13,19],[14,20],[15,21],[16,22],[18,19],[19,20],[20,21],[21,22],[23,1],[23,6]];
+  var net=document.getElementById('net'),edges=[],SVGNS='http://www.w3.org/2000/svg';
+  NE.forEach(function(e,idx){
+    var a=NX[e[0]],b=NX[e[1]],ln=document.createElementNS(SVGNS,'line');
+    ln.setAttribute('x1',a[0]);ln.setAttribute('y1',a[1]);ln.setAttribute('x2',b[0]);ln.setAttribute('y2',b[1]);
+    ln.setAttribute('class','edge');
+    var len=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    ln.setAttribute('stroke-dasharray',len);ln.setAttribute('stroke-dashoffset',len);
+    net.appendChild(ln);edges.push({el:ln,len:len,ord:idx/NE.length});
+  });
+  NX.forEach(function(n,idx){
+    var c=document.createElementNS(SVGNS,'circle');
+    c.setAttribute('cx',n[0]);c.setAttribute('cy',n[1]);c.setAttribute('r',idx===0?9:4.5);
+    c.setAttribute('class',idx===0?'hub':'node');
+    net.appendChild(c);
+  });
+
+  /* -------- reveals -------- */
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}});
+  },{threshold:.16});
+  [].forEach.call(document.querySelectorAll('.rv'),function(el){io.observe(el)});
+
+  /* -------- helpers -------- */
+  function clamp01(v){return v<0?0:v>1?1:v}
+  function vprog(el,lead){ /* 0..1 as el crosses the viewport */
+    var r=el.getBoundingClientRect();
+    return clamp01((innerHeight-r.top)/(innerHeight+(lead||r.height)));
+  }
+
+  /* -------- load tween: decode begins with zero interaction -------- */
+  var loadP=0,t0=performance.now();
+
+  function tick(now){
+    if(loadP<0.16)loadP=Math.min(0.16,(now-t0)/2000*0.16);
+
+    /* pinned decode progress */
+    var total=decode.offsetHeight-innerHeight,
+        top=decode.getBoundingClientRect().top,
+        p=Math.max(loadP,clamp01(-top/total));
+
+    for(var j=0;j<base.length;j++){
+      base[j].classList.toggle('off',p>=((j+1)/base.length)*0.62);
+    }
+    var offCount=0;
+    for(j=0;j<base.length;j++)if(base[j].classList.contains('off'))offCount++;
+    for(j=0;j<real.length;j++)real[j].classList.toggle('lit',p>=0.68);
+    decode.classList.toggle('verdict-on',p>=0.8);
+    var remaining=24-offCount;
+    countn.textContent=(remaining<10?'0':'')+remaining;
+    var fp=Math.max(0,p-0.18);           /* frame holds full-strength through the load tween */
+    frame.style.opacity=Math.max(0,1-fp*3.2);
+    frame.style.transform='translateY('+(fp*-90)+'px)';
+
+    /* page progress hairline */
+    var sc=scrollY/(document.documentElement.scrollHeight-innerHeight);
+    bar.style.transform='scaleX('+clamp01(sc)+')';
+
+    /* kinetic titles slide with scroll — settle fully at 55% of viewport rise */
+    kin.forEach(function(k){
+      var r=k.el.parentNode.getBoundingClientRect(),
+          v=clamp01((innerHeight-r.top)/(innerHeight*0.55)),
+          e=1-Math.pow(1-v,3);                     /* ease-out cubic */
+      k.el.style.transform='translateX('+((1-e)*k.dir*72)+'px)';
+    });
+
+    /* network edges draw with scroll */
+    var np=vprog(net,innerHeight*0.6);
+    edges.forEach(function(e){
+      var lp=clamp01(np*1.5-e.ord*0.45);
+      e.el.style.strokeDashoffset=e.len*(1-lp);
+    });
+
+    /* timeline spine fill */
+    if(tl){spine.style.setProperty('--p',vprog(tl).toFixed(4));spine.style.transform='scaleY('+vprog(tl).toFixed(4)+')'}
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

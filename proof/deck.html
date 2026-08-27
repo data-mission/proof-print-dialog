@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PROOF — the print dialog, reinvented</title>
+<meta name="description" content="PROOF paginates your document for real, measures ink coverage by reading actual glyph-run rectangles from the layout engine, flags the sheets that are waste, and prints what you meant.">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   PROOF — deck, rebuilt against the real app (index.html).
+   Single file · no dependencies · no webfonts · no backend.
+   Tokens, radii and components copied verbatim from the app's :root
+   and component classes so the deck reads as the same product.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#FFFFFF;
+  --tint:#F1F0FB;
+  --tint-2:#E6E4F5;
+  --ink:#141126;
+  --ink-2:#4A4568;
+  --ink-3:#8F8AA6;
+
+  --blue:#2B3BFF;
+  --pink:#FF4D9E;
+  --yellow:#FFD21C;
+  --green:#00B37E;
+
+  --stroke:3px;
+  --sh:5px 5px 0 var(--ink);
+  --sh-sm:3px 3px 0 var(--ink);
+  --r:14px;
+
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Hiragino Maru Gothic ProN",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --e:cubic-bezier(.2,.9,.25,1.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:clip}
+body{background:var(--tint);color:var(--ink);font-family:var(--sans);line-height:1.5;
+  -webkit-font-smoothing:antialiased;font-synthesis-weight:none}
+::selection{background:var(--yellow)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.wrap{width:min(100% - 40px,1180px);margin-inline:auto}
+
+/* ── type: aggressive scale ───────────────────────────────────── */
+.eyebrow{font:700 .68rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(3rem,9.2vw,6.8rem);font-weight:800;letter-spacing:-.045em;line-height:.94}
+h2{font-size:clamp(1.9rem,5.2vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.02}
+h3{font-size:clamp(1.1rem,1.8vw,1.35rem);font-weight:750;letter-spacing:-.015em}
+.lede{font-size:clamp(1.02rem,1.6vw,1.28rem);color:var(--ink-2);max-width:58ch;font-weight:600}
+.hi{background:linear-gradient(transparent 58%,color-mix(in oklab,var(--yellow) 78%,transparent) 0);padding:0 3px}
+.hi.pink{background:linear-gradient(transparent 58%,color-mix(in oklab,var(--pink) 34%,transparent) 0)}
+
+/* ── slide badge (deck-only chrome, distinct from in-app .tag) ──── */
+.slidetag{display:inline-flex;align-items:center;gap:8px;font:800 .68rem/1 var(--mono);
+  letter-spacing:.14em;text-transform:uppercase;background:var(--yellow);color:var(--ink);
+  border:var(--stroke) solid var(--ink);border-radius:100px;padding:7px 14px;
+  box-shadow:var(--sh-sm);transform:rotate(-2deg);margin-bottom:22px}
+
+/* ── top chrome, mirrors the app's toolbar ───────────────────────── */
+.hud{position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:14px;
+  padding:11px 18px;background:var(--paper);border-bottom:var(--stroke) solid var(--ink)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.02rem;letter-spacing:-.035em;flex:none}
+.logo svg{width:18px;height:18px;flex:none}
+.hud .meta{margin-left:auto;font:700 .68rem/1 var(--mono);letter-spacing:.1em;color:var(--ink-3)}
+.pbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--pink);z-index:71}
+
+/* ── slide shell ───────────────────────────────────────────────── */
+section{min-height:100vh;min-height:100svh;padding:clamp(92px,13vh,132px) 0 clamp(48px,7vh,80px);
+  display:flex;align-items:center;position:relative;border-bottom:var(--stroke) solid var(--ink)}
+section:last-of-type{border-bottom:0}
+.sec-inner{width:100%}
+.sec-head{max-width:70ch;margin-bottom:clamp(22px,4vh,38px)}
+.sec-head h2{margin:.2em 0 .28em}
+
+/* ══ components copied from the app, unchanged ═══════════════════ */
+
+/* verdict card */
+.verdict{border:var(--stroke) solid var(--ink);border-radius:var(--r);padding:18px 20px;
+  background:var(--yellow);box-shadow:var(--sh);rotate:-.7deg;max-width:340px}
+.verdict .lab{font:700 .64rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.vnums{display:flex;align-items:baseline;gap:11px;margin:9px 0 5px}
+.vnums .a{font-size:3.4rem;font-weight:800;letter-spacing:-.05em;position:relative;color:var(--ink-2)}
+.vnums .a::after{content:"";position:absolute;left:-9%;right:-9%;top:48%;height:6px;background:var(--pink);
+  border-radius:3px;transform:scaleX(0);transform-origin:left;transition:transform .7s .3s var(--e)}
+.js .vnums .a.struck::after{transform:scaleX(1)}
+.vnums .ar{font-size:1.3rem;font-weight:700;color:var(--ink-2)}
+.vnums .b{font-size:3.4rem;font-weight:800;letter-spacing:-.05em}
+.verdict p{font-size:.92rem;font-weight:650;line-height:1.34}
+
+/* stats grid */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.st{border:2px solid var(--ink);border-radius:11px;padding:13px 14px;background:var(--paper)}
+.st dt{font:700 .58rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.st dd{font-size:1.7rem;font-weight:800;letter-spacing:-.035em;margin-top:6px}
+.st dd small{font-size:.5em;font-weight:700;color:var(--ink-3);margin-left:2px}
+
+/* method badge */
+.method{display:inline-flex;align-items:center;gap:8px;font:600 .72rem/1.3 var(--mono);
+  letter-spacing:.02em;color:var(--ink-2);background:var(--paper);border:2px dashed var(--ink-3);
+  border-radius:9px;padding:10px 13px}
+.method b{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+
+/* pill tags (from the detail header) */
+.tag{font:800 .62rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  border:2px solid var(--ink);border-radius:100px;padding:6px 11px;display:inline-block}
+.tag.bad{background:var(--pink);color:#fff}
+.tag.ok{background:var(--green);color:#fff}
+
+/* sheet wall */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:clamp(10px,1.5vw,16px)}
+.sh{position:relative;text-align:left}
+.paper{aspect-ratio:8.5/11;background:var(--paper);border:var(--stroke) solid var(--ink);
+  border-radius:5px;box-shadow:var(--sh-sm);overflow:hidden;position:relative;padding:9px 8px}
+.sh.waste .paper{border-color:var(--pink)}
+.ln{height:2px;background:var(--ink);opacity:.3;border-radius:1px;margin-bottom:4px}
+.ln.h{height:5px;opacity:.7;margin-bottom:6px}
+.stamp{position:absolute;left:50%;top:50%;translate:-50% -50%;rotate:-9deg;
+  font:800 .5rem/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#fff;
+  background:var(--pink);border:2px solid var(--ink);border-radius:5px;padding:4px 6px;
+  text-align:center;white-space:nowrap;box-shadow:var(--sh-sm)}
+.structuretag{position:absolute;left:6px;bottom:6px;font:800 .42rem/1.2 var(--mono);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink);background:var(--tint);border:1.5px solid var(--ink);
+  border-radius:4px;padding:2px 4px}
+.shmeta{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:7px;
+  font:700 .64rem/1 var(--mono);letter-spacing:.03em}
+.shmeta .pg{background:var(--ink);color:#fff;border-radius:5px;padding:3px 6px}
+.sh.waste .shmeta .pg{background:var(--pink)}
+.gauge{flex:1;height:6px;background:var(--tint-2);border:2px solid var(--ink);border-radius:4px;overflow:hidden}
+.gauge b{display:block;height:100%;width:0;background:var(--blue);transition:width .7s var(--e)}
+.sh.waste .gauge b{background:var(--pink)}
+
+/* detail card */
+.detail{display:grid;grid-template-columns:minmax(0,.6fr) minmax(0,1fr);gap:clamp(20px,3vw,40px);
+  background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:var(--r);
+  box-shadow:var(--sh);padding:clamp(18px,2.6vw,30px);align-items:start}
+.detail .big{aspect-ratio:8.5/11;background:#fff;border:2px solid var(--ink);border-radius:5px;
+  overflow:hidden;position:relative;padding:20% 14%}
+.dhead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.detail h2{font-size:clamp(1.15rem,2vw,1.5rem)}
+.reasons{display:flex;flex-direction:column;gap:11px;margin-top:14px}
+.rsn{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start}
+.rsn i{width:26px;height:26px;border-radius:8px;display:grid;place-content:center;font-style:normal;
+  font:800 .66rem var(--mono);border:2px solid var(--ink);background:var(--yellow)}
+.rsn b{display:block;font-size:.9rem;font-weight:750}
+.rsn span{font-size:.83rem;color:var(--ink-2);line-height:1.45}
+.readout{margin-top:15px;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+.readout div{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;
+  font:700 .72rem/1 var(--mono);border-bottom:2px solid var(--ink)}
+.readout div:last-child{border-bottom:0}
+.readout div:nth-child(odd){background:var(--tint)}
+.readout span:last-child{color:var(--blue)}
+
+/* mini app frame — a faithful small reproduction of the real UI chrome */
+.frame{border:var(--stroke) solid var(--ink);border-radius:var(--r);box-shadow:8px 8px 0 var(--ink);
+  background:var(--paper);overflow:hidden}
+.frame-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:2px solid var(--ink)}
+.dots{display:flex;gap:5px}
+.dots i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);background:var(--tint)}
+.frame-bar .fname{margin-left:8px;font:700 .58rem/1 var(--mono);background:var(--tint);
+  border:2px solid var(--ink);border-radius:6px;padding:3px 8px;color:var(--ink-2)}
+.frame-bar .fspacer{flex:1}
+.frame-bar .fbtn{font:700 .56rem/1 var(--mono);border:2px solid var(--ink);border-radius:100px;
+  padding:4px 9px;background:var(--blue);color:#fff}
+.frame-body{display:grid;grid-template-columns:112px 1fr}
+.frame-rail{background:var(--paper);border-right:2px solid var(--ink);padding:9px;
+  display:flex;flex-direction:column;gap:8px}
+.frame-verdict{border:2px solid var(--ink);border-radius:8px;background:var(--yellow);padding:8px;rotate:-1deg}
+.frame-verdict .fv{font:800 1.3rem/1 var(--sans);letter-spacing:-.03em}
+.frame-verdict .fv s{color:var(--ink-2);text-decoration:line-through;text-decoration-color:var(--pink);
+  text-decoration-thickness:2px;font-weight:800}
+.frame-verdict p{font:700 .5rem/1.3 var(--sans);margin-top:4px}
+.frame-st{border:1.5px solid var(--ink);border-radius:6px;padding:5px 6px;background:var(--paper)}
+.frame-st dt{font:700 .38rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.frame-st dd{font:800 .78rem/1 var(--sans);margin-top:2px}
+.frame-stage{padding:10px;background:var(--tint)}
+.frame-wall{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.frame-sh{aspect-ratio:8.5/11;border:2px solid var(--ink);border-radius:3px;background:#fff;
+  position:relative;padding:5px 4px;overflow:hidden}
+.frame-sh.waste{border-color:var(--pink)}
+.frame-sh .fln{height:1.5px;background:var(--ink);opacity:.3;border-radius:1px;margin-bottom:2.5px}
+.frame-sh .fln.h{height:3px;opacity:.7;margin-bottom:4px}
+.frame-sh .fstamp{position:absolute;inset:0;display:grid;place-content:center;background:color-mix(in oklab,var(--pink) 12%,#fff)}
+.frame-sh .fstamp i{font:800 .32rem/1.1 var(--mono);color:var(--pink);text-transform:uppercase;text-align:center;
+  border:1.5px solid var(--pink);border-radius:3px;padding:2px 3px;background:#fff;letter-spacing:.04em}
+
+/* before / after */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:clamp(18px,3vw,40px);align-items:start}
+.ba-lab{display:block;margin-bottom:13px}
+.old{background:#E9E9E7;border:1px solid #A9A9A5;border-radius:8px;overflow:hidden;
+  font:400 .76rem/1.5 -apple-system,system-ui,sans-serif;box-shadow:0 10px 28px -20px rgba(0,0,0,.5)}
+.old-bar{background:linear-gradient(#F5F5F3,#DEDEDA);border-bottom:1px solid #B4B4B0;
+  padding:7px 10px;font-weight:600;font-size:.74rem;text-align:center;color:#3A3A38}
+.old-body{display:grid;grid-template-columns:104px 1fr;gap:12px;padding:14px}
+.old-prev{background:#fff;border:1px solid #B4B4B0;aspect-ratio:8.5/11;padding:7px}
+.old-prev .ln{background:#000;opacity:.28;height:1.5px;margin-bottom:3px}
+.old-fields{display:flex;flex-direction:column;gap:8px}
+.of{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.73rem;color:#3A3A38}
+.of span:last-child{background:#fff;border:1px solid #A9A9A5;border-radius:3px;padding:2px 7px;min-width:74px;font-size:.71rem}
+.old-foot{border-top:1px solid #B4B4B0;padding:9px 12px;display:flex;justify-content:flex-end;gap:7px}
+.old-btn{font-size:.73rem;padding:4px 14px;border-radius:4px;border:1px solid #A9A9A5;background:#F7F7F5}
+.old-btn.p{background:#3D6FD8;color:#fff;border-color:#3767C8}
+.old-note{font-size:.79rem;color:var(--ink-2);margin-top:13px;display:flex;gap:8px;font-weight:600}
+.old-note i{font-style:normal;color:var(--pink);font-weight:800}
+.old-note.y i{color:var(--green)}
+
+/* close */
+.closerow{margin-top:clamp(28px,5vh,46px)}
+
+/* reveals */
+.js [data-rev]{opacity:0;transform:translateY(22px);
+  transition:opacity .65s var(--d,0s) var(--e),transform .65s var(--d,0s) var(--e)}
+.js [data-rev].in{opacity:1;transform:none}
+
+footer{padding:clamp(40px,6vh,72px) 0 36px;border-top:var(--stroke) solid var(--ink);background:var(--paper)}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+
+.herogrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.86fr);gap:clamp(24px,4vw,54px);align-items:center}
+@media(max-width:900px){
+  .herogrid{grid-template-columns:1fr}
+  .detail{grid-template-columns:1fr}
+  .ba{grid-template-columns:1fr;gap:30px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  section{padding:clamp(84px,12vh,112px) 0 clamp(40px,6vh,60px)}
+}
+@media(max-width:560px){
+  .wrap{width:calc(100% - 26px)}
+  .old-body{grid-template-columns:78px 1fr}
+  .frame-body{grid-template-columns:88px 1fr}
+  .wall{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js [data-rev]{opacity:1;transform:none}
+  .js .vnums .a.struck::after{transform:scaleX(1)}
+}
+.chipbtn{font:700 .74rem/1 var(--sans);letter-spacing:-.01em;padding:9px 13px;border-radius:100px;
+  border:2px solid var(--ink);background:var(--paper);box-shadow:var(--sh-sm);
+  transition:transform .13s var(--e),box-shadow .13s var(--e);white-space:nowrap}
+.chipbtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.chipbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chipbtn.go{background:var(--blue);color:#fff}
+.chipbtn.ghost{box-shadow:none;border-color:var(--ink-3);color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<div class="pbar" id="pbar"></div>
+<header class="hud">
+  <div class="logo">
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="6.4" fill="none" stroke="var(--pink)" stroke-width="2.4"/>
+      <path d="M10 .5v19M.5 10h19" stroke="var(--ink)" stroke-width="1.6"/>
+    </svg>
+    PROOF
+  </div>
+  <button class="chipbtn" id="btnCopyMd" data-label="Copy as Markdown">Copy as Markdown</button>
+    <button class="chipbtn" id="btnDownloadMd" data-label="Download .md">Download .md</button>
+    <div class="meta" id="hudmeta">01 / 07</div>
+</header>
+
+<main>
+
+<!-- ═══ 1 · COVER ══════════════════════════════════════════════ -->
+<section id="s1" data-slide="1">
+  <div class="wrap sec-inner herogrid">
+    <div>
+      <p class="slidetag" data-rev>01 / 07 · The App</p>
+      <h1 data-rev style="--d:.05s">Print what<br>you <span class="hi">meant.</span></h1>
+      <p class="lede" data-rev style="--d:.12s;margin-top:16px">PROOF paginates your document for real, measures the ink every page actually carries, and drops the sheets that are waste — before a page moves.</p>
+      <div data-rev style="--d:.2s;margin-top:26px">
+        <div class="verdict">
+          <div class="lab">Proof · this job</div>
+          <div class="vnums">
+            <span class="a num vfrom" id="vfrom">15</span>
+            <span class="ar">→</span>
+            <span class="b num">10</span>
+          </div>
+          <p>You were about to print <b>5 sheets of nothing.</b></p>
+        </div>
+        <dl class="stats" style="grid-template-columns:repeat(2,1fr);max-width:280px;margin-top:14px">
+          <div class="st"><dt>Mean ink</dt><dd class="num">2.9<small>%</small></dd></div>
+          <div class="st"><dt>Cost avoided</dt><dd class="num">$0.06</dd></div>
+        </dl>
+      </div>
+    </div>
+    <div data-rev style="--d:.16s" id="frameCover"></div>
+  </div>
+</section>
+
+<!-- ═══ 2 · THE PROBLEM ════════════════════════════════════════ -->
+<section id="s2" data-slide="2">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>02 / 07 · The Problem</p>
+    <div class="herogrid" style="align-items:flex-start">
+      <div>
+        <h2 data-rev style="--d:.05s">You can't see a page at <span class="hi pink">104 pixels.</span></h2>
+        <p class="lede" data-rev style="--d:.1s;margin-top:14px">The print dialog shows a thumbnail smaller than an app icon, then sends every sheet to the tray. On a real 15-page document, that's how a title page, a table of contents, and five pages of pagination furniture all print looking identical.</p>
+      </div>
+      <div data-rev style="--d:.12s">
+        <div class="old">
+          <div class="old-bar">Print</div>
+          <div class="old-body">
+            <div class="old-prev" id="oldPrev"></div>
+            <div class="old-fields">
+              <div class="of"><span>Printer</span><span>HP LaserJet</span></div>
+              <div class="of"><span>Copies</span><span>1</span></div>
+              <div class="of"><span>Pages</span><span>All</span></div>
+              <div class="of"><span>Scale</span><span>100%</span></div>
+            </div>
+          </div>
+          <div class="old-foot"><span class="old-btn">Cancel</span><span class="old-btn p">Print</span></div>
+        </div>
+        <p class="old-note"><i>✕</i><span>Page 1 of 15, at 104px wide. No measurement. No warning.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 3 · BEFORE / AFTER ═════════════════════════════════════ -->
+<section id="s3" data-slide="3">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>03 / 07 · Before / After</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Same document. Same printer.</h2>
+      <p class="lede" data-rev style="--d:.1s">One asks you to trust a stamp-sized guess. The other is a real print dialog that did the work.</p>
+    </div>
+    <div class="ba">
+      <div data-rev>
+        <span class="eyebrow ba-lab">Before</span>
+        <div class="old">
+          <div class="old-bar">Print</div>
+          <div class="old-body">
+            <div class="old-prev" id="oldPrev2"></div>
+            <div class="old-fields">
+              <div class="of"><span>Pages</span><span>All</span></div>
+              <div class="of"><span>Copies</span><span>1</span></div>
+              <div class="of"><span>Scale</span><span>100%</span></div>
+            </div>
+          </div>
+          <div class="old-foot"><span class="old-btn">Cancel</span><span class="old-btn p">Print 15 pages</span></div>
+        </div>
+        <p class="old-note"><i>✕</i><span>No measurement, no warning. Prints all fifteen — five of them waste.</span></p>
+      </div>
+      <div data-rev style="--d:.08s" id="frameBA">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 4 · HOW IT MEASURES ════════════════════════════════════ -->
+<section id="s4" data-slide="4">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>04 / 07 · How It Works</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Measured. Not rasterised.</h2>
+      <p class="lede" data-rev style="--d:.1s">Every text node's real glyph-run rectangles are read straight from the layout engine — <code>Range.getClientRects</code> — and summed against the page box, weighted by measured glyph density. It is not a screenshot. It's the same layout the browser will hand the printer.</p>
+      <p class="method" data-rev style="--d:.14s;margin-top:14px"><b></b>measured · 241 glyph runs across 15 pages</p>
+    </div>
+    <div class="detail" data-rev style="--d:.18s">
+      <div class="big" id="bigmount"></div>
+      <div>
+        <div class="dhead">
+          <span class="tag bad">Flagged · waste</span>
+          <span class="tag">Sheet 04 of 15</span>
+          <span class="tag">orphaned_footer</span>
+        </div>
+        <h2>Why this sheet is waste</h2>
+        <div class="reasons">
+          <div class="rsn"><i>1</i><div><b>It is furniture, not content</b><span>A single trailing line — a footer that overflowed onto its own sheet.</span></div></div>
+          <div class="rsn"><i>2</i><div><b>Below the ink threshold</b><span>Measured coverage is 0.11% of the page area. Anything under 2.0% is a sheet spent on almost nothing.</span></div></div>
+          <div class="rsn"><i>3</i><div><b>Dropping it changes nothing</b><span>The content you meant to print is unaffected. The sheet is removed from the job and never leaves the tray.</span></div></div>
+        </div>
+        <div class="readout">
+          <div><span>ink coverage</span><span>0.11%</span></div>
+          <div><span>threshold</span><span>2.0%</span></div>
+          <div><span>method</span><span>measured · glyph rectangles</span></div>
+          <div><span>page geometry</span><span>8.5×11in @ 96dpi</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 5 · NOT NAIVE ═══════════════════════════════════════════ -->
+<section id="s5" data-slide="5">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>05 / 07 · The Classifier</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Low ink isn't the whole rule.</h2>
+      <p class="lede" data-rev style="--d:.1s">A title page and a table of contents are both legitimately sparse — and both must print. PROOF only flags a sheet when it's under the threshold <b>and</b> carries no structure: no heading, no table, no list.</p>
+    </div>
+    <div class="ba">
+      <div data-rev>
+        <div class="detail" style="grid-template-columns:1fr;box-shadow:var(--sh-sm)">
+          <div class="dhead"><span class="tag ok">Keeping</span><span class="tag">1.00% ink</span></div>
+          <h3>Table of contents</h3>
+          <p class="lede" style="margin-top:8px;font-size:.88rem">Under the 2.0% threshold on ink alone — but it carries a structured list, so it prints.</p>
+        </div>
+      </div>
+      <div data-rev style="--d:.08s">
+        <div class="detail" style="grid-template-columns:1fr;box-shadow:var(--sh-sm)">
+          <div class="dhead"><span class="tag ok">Keeping</span><span class="tag">2.06% ink</span></div>
+          <h3>Title page</h3>
+          <p class="lede" style="margin-top:8px;font-size:.88rem">Sparse by design. Above threshold and carries a heading — kept without a second thought.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6 · THE SHEET WALL ═════════════════════════════════════ -->
+<section id="s6" data-slide="6">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>06 / 07 · The Full Job</p>
+    <div class="sec-head">
+      <h2 data-rev style="--d:.05s">Fifteen sheets in. Ten sheets out.</h2>
+      <p class="lede" data-rev style="--d:.1s">Every sheet, at readable size, with its measured coverage where it was measured. Five are stamped and dropped before a sheet moves.</p>
+    </div>
+    <div class="wall" id="wallFull" data-rev style="--d:.14s"></div>
+  </div>
+</section>
+
+<!-- ═══ 7 · CLOSE ══════════════════════════════════════════════ -->
+<section id="s7" data-slide="7">
+  <div class="wrap sec-inner">
+    <p class="slidetag" data-rev>07 / 07 · Close</p>
+    <h1 data-rev style="--d:.05s">Print what<br>you <span class="hi pink">meant.</span></h1>
+    <dl class="closerow stats" data-rev style="--d:.14s;grid-template-columns:repeat(3,1fr);max-width:640px">
+      <div class="st"><dt>Sheets</dt><dd class="num">15</dd></div>
+      <div class="st"><dt>Printing</dt><dd class="num">10</dd></div>
+      <div class="st"><dt>Dropping</dt><dd class="num">5</dd></div>
+      <div class="st"><dt>Threshold</dt><dd class="num">2.0<small>%</small></dd></div>
+      <div class="st"><dt>Mean ink</dt><dd class="num">2.9<small>%</small></dd></div>
+      <div class="st"><dt>Cost avoided</dt><dd class="num">$0.06</dd></div>
+    </dl>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <p class="eyebrow">PROOF</p>
+        <h3>Print what you meant.</h3>
+      </div>
+      <div class="eyebrow">Cursor Hackathon · Calgary · 2026</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   THE DOCUMENT — the same 15-page job the real app measures. Flagged
+   pages, reasons and ink values match index.html exactly. The eight
+   pages not called out below are rendered as plain "prints" sheets
+   with no fabricated ink number — only what was actually measured
+   is shown as a number anywhere in this deck.
+   ══════════════════════════════════════════════════════════════════ */
+const PAGES = [
+  { n:1,  kind:'title',   ink:2.06, tag:'title page' },
+  { n:2,  kind:'toc',     ink:1.00, tag:'table of contents' },
+  { n:3,  kind:'content' },
+  { n:4,  kind:'waste',   ink:0.11, reason:'orphaned_footer' },
+  { n:5,  kind:'content' },
+  { n:6,  kind:'waste',   ink:0.05, reason:'break_artefact' },
+  { n:7,  kind:'content' },
+  { n:8,  kind:'content' },
+  { n:9,  kind:'waste',   ink:0.10, reason:'intentionally_blank' },
+  { n:10, kind:'content' },
+  { n:11, kind:'waste',   ink:0.06, reason:'orphaned_footer' },
+  { n:12, kind:'content' },
+  { n:13, kind:'waste',   ink:0.01, reason:'orphaned_footer' },
+  { n:14, kind:'content' },
+  { n:15, kind:'content' }
+];
+
+function lines(seed, n, headFirst){
+  let out='';
+  for(let i=0;i<n;i++){
+    const w = 55 + ((seed*7 + i*13) % 38);
+    out += `<div class="ln ${headFirst && i===0 ? 'h':''}" style="width:${w}%"></div>`;
+  }
+  return out;
+}
+
+function sheetCard(p){
+  const waste = p.kind==='waste';
+  const struct = p.kind==='title' || p.kind==='toc';
+  const n = p.kind==='waste' ? 2 : (struct ? 8 : 12);
+  return `<div class="sh ${waste?'waste':''}">
+    <div class="paper">
+      ${lines(p.n, n, true)}
+      ${waste?`<span class="stamp">Waste<br>${p.ink}%</span>`:''}
+      ${struct?`<span class="structuretag">${p.tag}</span>`:''}
+    </div>
+    <div class="shmeta">
+      <span class="pg num">${String(p.n).padStart(2,'0')}</span>
+      <span class="gauge"><b data-w="${p.ink!=null ? Math.min(100,p.ink*10) : 55}"></b></span>
+      <span class="num">${p.ink!=null ? p.ink+'%' : 'prints'}</span>
+    </div>
+  </div>`;
+}
+
+function buildWall(){
+  document.getElementById('wallFull').innerHTML = PAGES.map(sheetCard).join('');
+  document.getElementById('oldPrev').innerHTML = lines(1, 12, true);
+  document.getElementById('oldPrev2').innerHTML = lines(1, 12, true);
+  document.getElementById('bigmount').innerHTML = `<div style="height:64%"></div>${lines(4,1,false)}<div style="font:600 .82rem var(--sans);color:var(--ink-2);margin-top:6px">Terms and conditions apply.</div>`;
+}
+
+/* ── mini app-frame reproduction, used as the cover "screenshot" ── */
+function frameHTML(){
+  const kept = PAGES.filter(p=>p.kind!=='waste').slice(0,6);
+  return `
+  <div class="frame">
+    <div class="frame-bar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span class="fname">Quarterly_Report_FINAL_v4.docx</span>
+      <span class="fspacer"></span>
+      <span class="fbtn">Print</span>
+    </div>
+    <div class="frame-body">
+      <div class="frame-rail">
+        <div class="frame-verdict">
+          <div class="fv"><s>15</s> → 10</div>
+          <p>5 sheets of nothing</p>
+        </div>
+        <div class="frame-st"><dt>Dropping</dt><dd>5</dd></div>
+        <div class="frame-st"><dt>Threshold</dt><dd>2.0%</dd></div>
+      </div>
+      <div class="frame-stage">
+        <div class="frame-wall">
+          ${PAGES.slice(0,8).map(p=>`<div class="frame-sh ${p.kind==='waste'?'waste':''}">
+            ${p.kind==='waste'
+              ? `<div class="fstamp"><i>waste</i></div>`
+              : Array.from({length:6},(_,i)=>`<div class="fln ${i===0?'h':''}"></div>`).join('')}
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+document.getElementById('frameCover').innerHTML = frameHTML();
+document.getElementById('frameBA').innerHTML = `<span class="eyebrow ba-lab">After</span>` + frameHTML() +
+  `<p class="old-note y"><i>✓</i><span>Every page legible, waste flagged with the measurement behind it.</span></p>`;
+
+buildWall();
+
+(function(){
+  const doc=document.documentElement;
+  doc.classList.remove('no-js'); doc.classList.add('js');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frame=new URLSearchParams(location.search).get('frame');
+  const instant = reduced || !!frame;
+
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+  }),{threshold:.14,rootMargin:'0px 0px -6% 0px'});
+  document.querySelectorAll('[data-rev]').forEach(n=>io.observe(n));
+
+  setTimeout(()=>document.getElementById('vfrom')?.classList.add('struck'), instant?0:200);
+
+  setTimeout(()=>document.querySelectorAll('.gauge b').forEach((b,i)=>
+    setTimeout(()=>b.style.width=b.dataset.w+'%', instant?0:i*35)), instant?0:400);
+
+  const meta=document.getElementById('hudmeta');
+  const secs=[...document.querySelectorAll('section[data-slide]')];
+  const sio=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting) meta.textContent = e.target.dataset.slide.padStart(2,'0') + ' / 07'; });
+  },{threshold:.5});
+  secs.forEach(s=>sio.observe(s));
+
+  const pbar=document.getElementById('pbar');
+  let dirty=true;
+  addEventListener('scroll',()=>{dirty=true},{passive:true});
+  (function loop(){
+    if(dirty){
+      dirty=false;
+      const max=doc.scrollHeight-innerHeight;
+      pbar.style.width=(max>0?Math.min(1,scrollY/max)*100:0)+'%';
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+<script>
+const PAGE_MD = "# PROOF — the print dialog, reinvented\n\n> PROOF paginates your document for real, measures the ink every page actually carries, and drops the sheets that are waste — before a page moves.\n\n**Proof · this job**\n\n| Pages in → out | You were about to print |\n|---|---|\n| 15 → 10 | 5 sheets of nothing |\n\n| Mean ink | Cost avoided |\n|---|---|\n| 2.9% | $0.06 |\n\n---\n\n## 1. The App\n\n# Print what you meant.\n\nPROOF paginates your document for real, measures the ink every page actually carries, and drops the sheets that are waste — before a page moves.\n\n---\n\n## 2. The Problem\n\n## You can't see a page at 104 pixels.\n\nThe print dialog shows a thumbnail smaller than an app icon, then sends every sheet to the tray. On a real 15-page document, that's how a title page, a table of contents, and five pages of pagination furniture all print looking identical.\n\n**The old dialog:** Printer: HP LaserJet · Copies: 1 · Pages: All · Scale: 100%\n\n✕ Page 1 of 15, at 104px wide. No measurement. No warning.\n\n---\n\n## 3. Before / After\n\n## Same document. Same printer.\n\nOne asks you to trust a stamp-sized guess. The other is a real print dialog that did the work.\n\n**Before:** Pages: All · Copies: 1 · Scale: 100% · \"Print 15 pages\"\n✕ No measurement, no warning. Prints all fifteen — five of them waste.\n\n**After:** Verdict card reads 15 → 10, \"5 sheets of nothing.\" Sheet wall shows every page with waste sheets stamped.\n✓ Every page legible, waste flagged with the measurement behind it.\n\n---\n\n## 4. How It Works\n\n## Measured. Not rasterised.\n\nEvery text node's real glyph-run rectangles are read straight from the layout engine — `Range.getClientRects` — and summed against the page box, weighted by measured glyph density. It is not a screenshot. It's the same layout the browser will hand the printer.\n\n**Method badge:** measured · 241 glyph runs across 15 pages\n\n**Example detail — Sheet 04 of 15 · Flagged · waste · `orphaned_footer`**\n\nWhy this sheet is waste:\n1. **It is furniture, not content.** A single trailing line — a footer that overflowed onto its own sheet.\n2. **Below the ink threshold.** Measured coverage is 0.11% of the page area. Anything under 2.0% is a sheet spent on almost nothing.\n3. **Dropping it changes nothing.** The content you meant to print is unaffected. Pagination reflows and the sheet never leaves the tray.\n\n| Readout | Value |\n|---|---|\n| ink coverage | 0.11% |\n| threshold | 2.0% |\n| method | measured · glyph rectangles |\n| page geometry | 8.5×11in @ 96dpi |\n\n---\n\n## 5. The Classifier\n\n## Low ink isn't the whole rule.\n\nA title page and a table of contents are both legitimately sparse — and both must print. PROOF only flags a sheet when it's under the threshold **and** carries no structure: no heading, no table, no list.\n\n- **Table of contents · Keeping · 1.00% ink** — Under the 2.0% threshold on ink alone — but it carries a structured list, so it prints.\n- **Title page · Keeping · 2.06% ink** — Sparse by design. Above threshold and carries a heading — kept without a second thought.\n\n---\n\n## 6. The Full Job\n\n## Fifteen sheets in. Ten sheets out.\n\nEvery sheet, at readable size, with its measured coverage where it was measured. Five are stamped and dropped before a sheet moves.\n\n| Sheet | Kind | Ink | Reason |\n|---|---|---|---|\n| 01 | title page | 2.06% | — |\n| 02 | table of contents | 1.00% | — |\n| 03 | content | — | — |\n| 04 | **waste** | 0.11% | orphaned_footer |\n| 05 | content | — | — |\n| 06 | **waste** | 0.05% | break_artefact |\n| 07 | content | — | — |\n| 08 | content | — | — |\n| 09 | **waste** | 0.10% | intentionally_blank |\n| 10 | content | — | — |\n| 11 | **waste** | 0.06% | orphaned_footer |\n| 12 | content | — | — |\n| 13 | **waste** | 0.01% | orphaned_footer |\n| 14 | content | — | — |\n| 15 | content | — | — |\n\n---\n\n## 7. Close\n\n# Print what you meant.\n\n| Sheets | Printing | Dropping | Threshold | Mean ink | Cost avoided |\n|---|---|---|---|---|---|\n| 15 | 10 | 5 | 2.0% | 2.9% | $0.06 |\n\n---\n\nPrint what you meant. — Cursor Hackathon · Calgary · 2026\n";
+
+/* ── Copy-as-Markdown / Download .md — agent-readable doc controls ── */
+function proofShowFeedback(btn, msg, ms){
+  ms = ms || 1500;
+  var original = btn.dataset.label || btn.textContent;
+  btn.dataset.label = original;
+  btn.textContent = msg;
+  btn.disabled = true;
+  setTimeout(function(){ btn.textContent = original; btn.disabled = false; }, ms);
+}
+function proofRevealMarkdown(md){
+  var box = document.getElementById('mdReveal');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'mdReveal';
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(20,17,38,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    box.innerHTML = '<div style="background:#fff;border:3px solid #141126;border-radius:14px;padding:20px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:10px;box-shadow:8px 8px 0 #141126">'
+      + '<strong style="font:800 .88rem/1.3 system-ui,-apple-system,sans-serif">Clipboard unavailable here — select all and copy manually</strong>'
+      + '<textarea readonly style="width:100%;height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;padding:10px;border:2px solid #141126;border-radius:8px;resize:vertical" id="mdRevealTa"></textarea>'
+      + '<button class="chipbtn go" id="mdRevealClose" style="align-self:flex-end">Close</button>'
+      + '</div>';
+    document.body.appendChild(box);
+    document.getElementById('mdRevealClose').addEventListener('click', function(){ box.remove(); });
+  }
+  var ta = document.getElementById('mdRevealTa');
+  ta.value = md;
+  ta.focus();
+  ta.select();
+}
+function proofCopyMarkdown(btn, md){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(md).then(function(){
+      proofShowFeedback(btn, 'Copied');
+    }, function(){ proofCopyFallback(btn, md); });
+  } else {
+    proofCopyFallback(btn, md);
+  }
+}
+function proofCopyFallback(btn, md){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = md;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok){ proofShowFeedback(btn, 'Copied'); return; }
+    proofRevealMarkdown(md);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+function proofDownloadMarkdown(md, filename){
+  try{
+    var blob = new Blob([md], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  } catch(e){
+    proofRevealMarkdown(md);
+  }
+}
+(function(){
+  var copyBtn = document.getElementById('btnCopyMd');
+  var dlBtn = document.getElementById('btnDownloadMd');
+  if(copyBtn) copyBtn.addEventListener('click', function(){ proofCopyMarkdown(copyBtn, PAGE_MD); });
+  if(dlBtn) dlBtn.addEventListener('click', function(){ proofDownloadMarkdown(PAGE_MD, "pitch.md"); });
+})();
+
+</script>
+</body>
+</html>

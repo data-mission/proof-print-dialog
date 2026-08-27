@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DOSE — the agent that runs your day</title>
+<meta name="description" content="Every bottle tells you its own schedule. Nothing tells you your day. DOSE is an agent that holds the whole regimen — and speaks MCP, so your other agents can ask it.">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   DOSE — agentic medication intelligence
+   Single file. No dependencies. No webfonts. No backend.
+   Palette is warm clinical paper — deliberately NOT the
+   near-black + acid-accent look that saturates this field.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#F4F1E9;      /* warm bone ground */
+  --paper-2:#EDE8DC;
+  --card:#FBF9F4;
+  --ink:#17150F;
+  --ink-2:#4A4639;
+  --ink-3:#8A8371;
+  --rule:#DAD3C2;
+  --amber:#D9761F;      /* the pharmacy bottle */
+  --teal:#136E६6;
+  --teal-fix:#126E66;
+  --plum:#7A3355;
+  --slate:#3D5A80;
+  --alert:#B93A25;
+  --ok:#3F6B33;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --e:cubic-bezier(.22,.68,.24,1);
+  --maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:clip}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);
+  line-height:1.5;-webkit-font-smoothing:antialiased;
+  font-synthesis-weight:none;
+}
+::selection{background:var(--amber);color:#fff}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+/* paper grain — pure SVG, no image request */
+.grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.42;mix-blend-mode:multiply}
+
+.wrap{width:min(100% - 44px,var(--maxw));margin-inline:auto}
+
+/* ── type system ─────────────────────────────────────────── */
+.eyebrow{font:600 .66rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+h1,h2,h3{letter-spacing:-.022em;line-height:1.04;text-wrap:balance;font-weight:680}
+h1{font-size:clamp(2.5rem,6.4vw,4.6rem)}
+h2{font-size:clamp(1.85rem,4.1vw,3rem)}
+h3{font-size:clamp(1.05rem,2vw,1.3rem);letter-spacing:-.012em}
+.lede{font-size:clamp(1.02rem,1.9vw,1.28rem);color:var(--ink-2);max-width:62ch;text-wrap:pretty}
+.num{font-variant-numeric:tabular-nums lining-nums}
+
+/* ── chrome ──────────────────────────────────────────────── */
+.hud{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;
+  justify-content:space-between;align-items:center;gap:16px;
+  padding:14px clamp(16px,3vw,30px);
+  background:color-mix(in oklab,var(--paper) 88%,transparent);
+  backdrop-filter:blur(12px) saturate(1.3);
+  border-bottom:1px solid var(--rule);
+  transition:transform .4s var(--e)}
+.hud.gone{transform:translateY(-102%)}
+.brand{display:flex;align-items:center;gap:9px;font:700 .95rem/1 var(--sans);letter-spacing:-.02em}
+.brand i{width:13px;height:13px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 0 3px color-mix(in oklab,var(--amber) 22%,transparent);flex:none}
+.hud .meta{font:500 .64rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.pbar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--amber);z-index:51}
+
+/* ── hero ────────────────────────────────────────────────── */
+.hero{padding:clamp(96px,15vh,150px) 0 clamp(40px,7vh,80px)}
+.hero h1{margin:.34em 0 .3em}
+.hero h1 .q{color:var(--amber)}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.badge{font:600 .66rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 11px;border:1px solid var(--rule);border-radius:100px;color:var(--ink-2);
+  background:var(--card);display:inline-flex;align-items:center;gap:7px}
+.badge b{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
+
+/* ── the dial ────────────────────────────────────────────── */
+.dialwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.82fr);gap:clamp(24px,4vw,60px);
+  align-items:center;padding:clamp(30px,6vh,64px) 0}
+.dialbox{position:relative;aspect-ratio:1;width:100%;max-width:560px;margin-inline:auto}
+#dial{width:100%;height:100%;overflow:visible}
+.dial-hub{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
+.dial-hub .now{font:700 .62rem/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.dial-hub .big{font-size:clamp(2.1rem,4.6vw,3.1rem);font-weight:700;letter-spacing:-.03em;margin:.14em 0}
+.dial-hub .sub{font:500 .74rem/1.4 var(--sans);color:var(--ink-2);max-width:15ch}
+
+.tick{stroke:var(--rule);stroke-width:1}
+.tick.major{stroke:var(--ink-3);stroke-width:1.4}
+.hourlab{font:600 9px var(--mono);fill:var(--ink-3);letter-spacing:.08em}
+.ringbase{fill:none;stroke:var(--paper-2);stroke-width:13}
+.arc{fill:none;stroke-width:13;stroke-linecap:round;
+  transition:opacity .45s var(--e),stroke-width .3s var(--e)}
+.arc.mute{opacity:.2}
+.dosepip{transition:opacity .4s var(--e),r .35s var(--e)}
+.chord{stroke:var(--alert);stroke-width:1.6;stroke-dasharray:3 4;opacity:0;
+  transition:opacity .5s var(--e)}
+.chord.on{opacity:.9}
+.collide-ray{stroke:var(--alert);stroke-width:1.2;opacity:.35}
+
+/* ── med legend / nested reveal ──────────────────────────── */
+.legend{display:flex;flex-direction:column;gap:11px}
+.med{border:1px solid var(--rule);border-radius:15px;background:var(--card);
+  padding:15px 17px;cursor:pointer;position:relative;overflow:hidden;
+  transition:border-color .3s var(--e),box-shadow .3s var(--e),transform .3s var(--e)}
+.med:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.med.active{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.med::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.med-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.med-name{font-weight:670;font-size:1rem;letter-spacing:-.014em}
+.med-name small{font-weight:500;color:var(--ink-3);font-size:.8rem;margin-left:5px}
+.med-times{font:600 .74rem/1 var(--mono);color:var(--c);letter-spacing:.04em;white-space:nowrap}
+.med-for{font-size:.83rem;color:var(--ink-2);margin-top:5px}
+.med-body{max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .5s var(--e),opacity .35s var(--e),margin .5s var(--e)}
+.med.active .med-body{max-height:340px;opacity:1;margin-top:13px}
+.sig{font:500 .72rem/1.55 var(--mono);text-transform:uppercase;letter-spacing:.05em;
+  background:var(--paper-2);border-left:3px solid var(--c);padding:9px 11px;border-radius:0 7px 7px 0;color:var(--ink-2)}
+.med-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px;margin-top:11px}
+.mg{background:var(--paper-2);border-radius:9px;padding:8px 10px}
+.mg dt{font:600 .58rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.mg dd{font-size:.84rem;font-weight:600;margin-top:4px}
+
+/* ── generic section ─────────────────────────────────────── */
+section{padding:clamp(56px,10vh,116px) 0;position:relative}
+.sec-head{max-width:70ch;margin-bottom:clamp(26px,4vh,44px)}
+.sec-head h2{margin:.32em 0 .34em}
+.rule{height:1px;background:var(--rule);border:0}
+
+/* ── before/after (the boring original) ──────────────────── */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.6vw,34px);align-items:start}
+.ba-col > .eyebrow{display:block;margin-bottom:13px}
+.labels{display:flex;flex-direction:column;gap:10px}
+.plabel{background:#fff;border:1px solid var(--rule);border-radius:5px;padding:12px 13px;
+  font:500 .68rem/1.5 var(--mono);text-transform:uppercase;letter-spacing:.045em;color:#4c4638;
+  box-shadow:0 1px 0 rgba(0,0,0,.05)}
+.plabel .rx{display:flex;justify-content:space-between;font-size:.58rem;color:#948b78;
+  border-bottom:1px dashed var(--rule);padding-bottom:6px;margin-bottom:7px;letter-spacing:.11em}
+.plabel b{color:var(--ink);font-weight:700}
+.verdict{margin-top:15px;font-size:.87rem;color:var(--ink-2);display:flex;gap:9px;align-items:flex-start}
+.verdict i{flex:none;width:17px;height:17px;border-radius:50%;display:grid;place-content:center;
+  font:700 10px var(--sans);font-style:normal;margin-top:1px}
+.verdict.bad i{background:color-mix(in oklab,var(--alert) 16%,transparent);color:var(--alert)}
+.verdict.good i{background:color-mix(in oklab,var(--ok) 17%,transparent);color:var(--ok)}
+
+/* the merged day strip = the "after" */
+.daystrip{background:var(--card);border:1px solid var(--rule);border-radius:15px;padding:17px;position:relative}
+.dsrow{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--rule)}
+.dsrow:last-child{border-bottom:0}
+.dstime{font:700 .78rem/1 var(--mono);letter-spacing:.02em}
+.dspills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font:600 .68rem/1 var(--sans);padding:6px 9px;border-radius:100px;
+  background:color-mix(in oklab,var(--c) 15%,transparent);color:var(--c);
+  border:1px solid color-mix(in oklab,var(--c) 34%,transparent);white-space:nowrap}
+.dsflag{font:600 .62rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--alert);display:flex;align-items:center;gap:5px;margin-top:5px}
+
+/* ── agent / MCP section ─────────────────────────────────── */
+.agentsec{background:var(--ink);color:var(--paper);border-radius:clamp(18px,2.6vw,26px);
+  padding:clamp(28px,5vw,58px);margin:0 auto}
+.agentsec .eyebrow{color:#9d9madd}
+.agentsec .eyebrow{color:#9C957F}
+.agentsec h2{color:var(--paper)}
+.agentsec .lede{color:#BDB6A2}
+.agrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(20px,3.4vw,44px);
+  margin-top:clamp(24px,4vh,42px);align-items:start}
+
+.term{background:#0D0C08;border:1px solid #302C21;border-radius:13px;overflow:hidden;
+  font-family:var(--mono);font-size:.735rem;line-height:1.62}
+.term-bar{display:flex;align-items:center;gap:7px;padding:9px 13px;border-bottom:1px solid #302C21;background:#131109}
+.term-bar i{width:9px;height:9px;border-radius:50%;background:#3A3529;flex:none}
+.term-bar span{margin-left:6px;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:#7C7360}
+.term-body{padding:14px 15px;white-space:pre-wrap;word-break:break-word;color:#C9C1AC;max-height:340px;overflow:auto}
+.term-body .k{color:#E0913F}
+.term-body .s{color:#7FAF6E}
+.term-body .c{color:#6C6552}
+.term-body .n{color:#6FA8C4}
+
+.toolist{display:flex;flex-direction:column;gap:9px}
+.tool{border:1px solid #302C21;border-radius:11px;padding:12px 14px;background:#131109}
+.tool code{font:600 .74rem var(--mono);color:var(--amber);letter-spacing:-.01em}
+.tool p{font-size:.79rem;color:#A69E89;margin-top:5px;line-height:1.5}
+.tool .args{font:500 .66rem var(--mono);color:#6C6552;margin-top:6px}
+
+.flow{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-top:26px}
+.fnode{border:1px solid #302C21;background:#131109;border-radius:11px;padding:13px;text-align:center}
+.fnode strong{display:block;font-size:.8rem;font-weight:650;color:var(--paper)}
+.fnode span{font:500 .62rem var(--mono);color:#7C7360;letter-spacing:.1em;text-transform:uppercase}
+.fbi{font-family:var(--mono);color:var(--amber);font-size:1.1rem;text-align:center}
+
+/* memory */
+.mem{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.memrow{display:grid;grid-template-columns:66px 1fr;gap:11px;align-items:start;
+  border-left:2px solid #302C21;padding:7px 0 7px 13px}
+.memrow .mt{font:600 .62rem/1.5 var(--mono);color:#7C7360;letter-spacing:.06em}
+.memrow .mb{font-size:.81rem;color:#C9C1AC;line-height:1.5}
+.memrow .mb b{color:var(--paper);font-weight:640}
+
+/* ── reveals ─────────────────────────────────────────────── */
+.js [data-rev]{opacity:0;transform:translateY(26px);
+  transition:opacity .75s var(--d,0s) var(--e),transform .75s var(--d,0s) var(--e)}
+.js [data-rev].in{opacity:1;transform:none}
+
+/* ── footer ──────────────────────────────────────────────── */
+footer{padding:clamp(46px,8vh,90px) 0 44px;border-top:1px solid var(--rule);margin-top:clamp(40px,7vh,80px)}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;gap:22px;flex-wrap:wrap}
+.foot .eyebrow{margin-bottom:9px}
+.disc{font-size:.73rem;color:var(--ink-3);max-width:56ch;line-height:1.55;margin-top:16px}
+
+/* ── responsive ──────────────────────────────────────────── */
+@media(max-width:900px){
+  .dialwrap{grid-template-columns:1fr;gap:30px}
+  .agrid{grid-template-columns:1fr}
+  .ba{grid-template-columns:1fr;gap:30px}
+  .flow{grid-template-columns:1fr;gap:9px}
+  .fbi{transform:rotate(90deg)}
+}
+@media(max-width:560px){
+  .wrap{width:calc(100% - 30px)}
+  .dialbox{max-width:100%}
+  .badges{gap:6px}
+  .badge{font-size:.6rem;padding:7px 9px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto}
+  .js [data-rev]{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<svg class="grain" aria-hidden="true"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency=".82" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#gr)" opacity=".28"/></svg>
+
+<div class="pbar" id="pbar"></div>
+
+<header class="hud" id="hud">
+  <div class="brand"><i></i>DOSE</div>
+  <div class="meta" id="hudmeta">MCP · 6 tools exposed</div>
+</header>
+
+<main>
+
+<!-- ══ HERO + DIAL ══════════════════════════════════════ -->
+<section class="hero" id="s-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-rev>Agentic medication intelligence</p>
+    <h1 data-rev style="--d:.06s">Every bottle tells you<br><span class="q">its own</span> schedule.<br>Nothing tells you your day.</h1>
+    <p class="lede" data-rev style="--d:.14s">DOSE is an agent that holds the whole regimen at once — the merged day, the overlaps, the rules no single label can know. It speaks MCP, so your other agents can ask it too.</p>
+    <div class="badges" data-rev style="--d:.2s">
+      <span class="badge"><b></b>MCP server live</span>
+      <span class="badge"><b></b>Persistent memory</span>
+      <span class="badge"><b></b>4 connectors</span>
+      <span class="badge"><b></b>Local-first · no cloud</span>
+    </div>
+  </div>
+
+  <div class="wrap dialwrap">
+    <div class="dialbox" data-rev style="--d:.1s">
+      <svg id="dial" viewBox="0 0 460 460" role="img" aria-label="24-hour medication dial"></svg>
+      <div class="dial-hub">
+        <div class="now" id="hubnow">Next dose</div>
+        <div class="big num" id="hubbig">08:00</div>
+        <div class="sub" id="hubsub">Metformin + Lisinopril together</div>
+      </div>
+    </div>
+    <div class="legend" id="legend" data-rev style="--d:.18s"></div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ══ BEFORE / AFTER ═══════════════════════════════════ -->
+<section id="s-ba">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" data-rev>The format we're reinventing</p>
+      <h2 data-rev style="--d:.06s">Four labels. Four schedules. One head doing the merge.</h2>
+      <p class="lede" data-rev style="--d:.12s">A pharmacy label is a complete instruction for exactly one bottle. Stack four and the instruction you actually need — <em>what does 8am look like</em> — appears on none of them.</p>
+    </div>
+    <div class="ba">
+      <div class="ba-col" data-rev>
+        <span class="eyebrow">Before — what you're given</span>
+        <div class="labels" id="labels"></div>
+        <div class="verdict bad"><i>✕</i><span>Each label is correct. Together they answer nothing — no shared clock, no overlaps, no order.</span></div>
+      </div>
+      <div class="ba-col" data-rev style="--d:.1s">
+        <span class="eyebrow">After — your actual day</span>
+        <div class="daystrip" id="daystrip"></div>
+        <div class="verdict good"><i>✓</i><span>One clock. Every collision surfaced, with the reason. This view exists on no bottle.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ══ AGENT / MCP ══════════════════════════════════════ -->
+<section id="s-agent">
+  <div class="wrap">
+    <div class="agentsec" data-rev>
+      <p class="eyebrow">The part that isn't a screen</p>
+      <h2>DOSE is an agent, and it has a port.</h2>
+      <p class="lede">The dial is what a person sees. Underneath, DOSE runs an MCP server — so Claude, your calendar agent, or anything else that speaks the protocol can read the regimen, ask what collides, and write back what actually happened.</p>
+
+      <div class="flow">
+        <div class="fnode"><span>Inbound</span><strong>Any MCP client</strong></div>
+        <div class="fbi">→</div>
+        <div class="fnode" style="border-color:#5A4A2A"><span>Agent + memory</span><strong>DOSE</strong></div>
+        <div class="fbi">→</div>
+        <div class="fnode"><span>Outbound</span><strong>Calendar · Pharmacy · Health</strong></div>
+      </div>
+
+      <div class="agrid">
+        <div>
+          <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>claude → dose · stdio</span></div>
+            <div class="term-body" id="term"></div>
+          </div>
+          <div class="mem" id="memlist"></div>
+        </div>
+        <div class="toolist" id="tools"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <p class="eyebrow">DOSE</p>
+        <h3>The regimen, held by something that remembers.</h3>
+      </div>
+      <div class="meta eyebrow">Cursor Hackathon · Calgary · 2026</div>
+    </div>
+    <p class="disc"><b>This is a scheduling and timing tool, not medical advice.</b> Overlap markers show when doses land at the same hour and surface timing guidance printed on pharmacy labels. They are not drug-interaction warnings. Always follow your pharmacist and prescriber.</p>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   DATA — a plausible regimen. Times drive the dial geometry.
+   Timing rules are label-printed scheduling guidance only.
+   ═══════════════════════════════════════════════════════════ */
+const MEDS = [
+  { id:'levo', name:'Levothyroxine', strength:'50 mcg', color:'var(--slate)', raw:'#3D5A80',
+    for:'Underactive thyroid — replaces a hormone your thyroid isn’t making.',
+    sig:'Take 1 tablet by mouth once daily on an empty stomach, 30–60 minutes before breakfast.',
+    times:[6.5], window:.75, food:'Empty stomach', qty:'90 tablets', refills:'2 remaining',
+    rule:'Separate from other medication by 4 hours.' },
+  { id:'met', name:'Metformin', strength:'500 mg', color:'var(--teal-fix)', raw:'#126E66',
+    for:'Type 2 diabetes — lowers the sugar your liver releases.',
+    sig:'Take 1 tablet by mouth twice daily with food.',
+    times:[8,18], window:.6, food:'With food', qty:'180 tablets', refills:'3 remaining',
+    rule:'Take with a meal to reduce stomach upset.' },
+  { id:'lis', name:'Lisinopril', strength:'10 mg', color:'var(--amber)', raw:'#D9761F',
+    for:'High blood pressure — relaxes blood vessels so the heart works less.',
+    sig:'Take 1 tablet by mouth once daily in the morning.',
+    times:[8], window:.6, food:'With or without', qty:'90 tablets', refills:'1 remaining',
+    rule:'Take at the same time each day.' },
+  { id:'ator', name:'Atorvastatin', strength:'20 mg', color:'var(--plum)', raw:'#7A3355',
+    for:'High cholesterol — lowers the LDL your body makes overnight.',
+    sig:'Take 1 tablet by mouth once daily in the evening.',
+    times:[22], window:.6, food:'With or without', qty:'90 tablets', refills:'2 remaining',
+    rule:'Evening dosing — most cholesterol is made overnight.' }
+];
+
+/* Collisions = same hour, or a label-printed separation rule breached. */
+const COLLISIONS = [
+  { at:8, meds:['met','lis'], kind:'stack',
+    note:'Two doses land on the same hour. Fine together — but it is one moment, not two.' },
+  { at:6.5, meds:['levo'], kind:'sep',
+    note:'Levothyroxine asks for a 4-hour gap from other medication. Your 08:00 stack is 90 minutes away.' }
+];
+
+/* ── dial geometry ──────────────────────────────────────── */
+const CX=230, CY=230, R0=196, RSTEP=26;
+const A = h => (h/24)*360 - 90;                       // midnight at top
+const P = (r,deg) => [CX + r*Math.cos(deg*Math.PI/180), CY + r*Math.sin(deg*Math.PI/180)];
+const arcPath = (r,h0,h1) => {
+  const a0=A(h0), a1=A(h1), [x0,y0]=P(r,a0), [x1,y1]=P(r,a1);
+  const large = (a1-a0) > 180 ? 1 : 0;
+  return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+};
+const el = (n,a={}) => { const e=document.createElementNS('http://www.w3.org/2000/svg',n);
+  for(const k in a) e.setAttribute(k,a[k]); return e; };
+const fmt = h => { const H=Math.floor(h), M=Math.round((h-H)*60);
+  return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0'); };
+
+function buildDial(){
+  const svg = document.getElementById('dial');
+  svg.textContent='';
+
+  // hour ticks + labels
+  for(let h=0;h<24;h++){
+    const major = h%6===0, a=A(h);
+    const [x1,y1]=P(R0+9,a), [x2,y2]=P(R0+(major?20:14),a);
+    svg.appendChild(el('line',{x1,y1,x2,y2,class:'tick'+(major?' major':'')}));
+    if(major){
+      const [lx,ly]=P(R0+33,a);
+      const t=el('text',{x:lx,y:ly,class:'hourlab','text-anchor':'middle','dominant-baseline':'middle'});
+      t.textContent = String(h).padStart(2,'0')+':00';
+      svg.appendChild(t);
+    }
+  }
+
+  // one ring per medication
+  MEDS.forEach((m,i)=>{
+    const r = R0 - i*RSTEP;
+    svg.appendChild(el('circle',{cx:CX,cy:CY,r,class:'ringbase'}));
+    m._r = r;
+    m.times.forEach(t=>{
+      const p = el('path',{ d:arcPath(r, t-m.window/2, t+m.window/2),
+        class:'arc', stroke:m.raw, 'data-med':m.id, opacity:0 });
+      p.style.transition='opacity .5s var(--e)';
+      svg.appendChild(p);
+      const [px,py]=P(r,A(t));
+      svg.appendChild(el('circle',{cx:px,cy:py,r:0,fill:'#FBF9F4',stroke:m.raw,
+        'stroke-width':2.6,class:'dosepip','data-med':m.id}));
+    });
+  });
+
+  // collision rays + chords
+  COLLISIONS.filter(c=>c.kind==='stack').forEach(c=>{
+    const rs = c.meds.map(id=>MEDS.find(m=>m.id===id)._r);
+    const a=A(c.at), [x1,y1]=P(Math.min(...rs)-9,a), [x2,y2]=P(Math.max(...rs)+9,a);
+    svg.appendChild(el('line',{x1,y1,x2,y2,class:'chord','data-col':c.at}));
+  });
+}
+
+/* ── legend (nested reveal on click) ────────────────────── */
+function buildLegend(){
+  const box=document.getElementById('legend');
+  box.innerHTML = MEDS.map(m=>`
+    <article class="med" data-med="${m.id}" style="--c:${m.color}" tabindex="0" role="button" aria-expanded="false">
+      <div class="med-top">
+        <div class="med-name">${m.name} <small>${m.strength}</small></div>
+        <div class="med-times num">${m.times.map(fmt).join(' · ')}</div>
+      </div>
+      <p class="med-for">${m.for}</p>
+      <div class="med-body">
+        <p class="sig">${m.sig}</p>
+        <dl class="med-grid">
+          <div class="mg"><dt>Food</dt><dd>${m.food}</dd></div>
+          <div class="mg"><dt>Quantity</dt><dd>${m.qty}</dd></div>
+          <div class="mg"><dt>Refills</dt><dd>${m.refills}</dd></div>
+        </dl>
+        <p class="med-for" style="margin-top:10px"><b>Timing:</b> ${m.rule}</p>
+      </div>
+    </article>`).join('');
+
+  box.querySelectorAll('.med').forEach(node=>{
+    const open = ()=>{
+      const was = node.classList.contains('active');
+      box.querySelectorAll('.med').forEach(n=>{n.classList.remove('active');n.setAttribute('aria-expanded','false');});
+      if(!was){ node.classList.add('active'); node.setAttribute('aria-expanded','true'); }
+      focusMed(was ? null : node.dataset.med);
+    };
+    node.addEventListener('click',open);
+    node.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();open();} });
+  });
+}
+
+function focusMed(id){
+  document.querySelectorAll('#dial .arc').forEach(a=>
+    a.classList.toggle('mute', !!id && a.dataset.med!==id));
+  document.querySelectorAll('#dial .dosepip').forEach(p=>
+    p.style.opacity = (!id || p.dataset.med===id) ? 1 : .22);
+  const hub=document.getElementById('hubsub'), big=document.getElementById('hubbig'),
+        now=document.getElementById('hubnow');
+  if(id){ const m=MEDS.find(x=>x.id===id);
+    now.textContent=m.name.toUpperCase(); big.textContent=m.times.map(fmt).join(' / ');
+    hub.textContent=m.food;
+  } else { now.textContent='Next dose'; big.textContent='08:00';
+    hub.textContent='Metformin + Lisinopril together'; }
+}
+
+/* ── before/after ───────────────────────────────────────── */
+function buildBefore(){
+  document.getElementById('labels').innerHTML = MEDS.map((m,i)=>`
+    <div class="plabel">
+      <div class="rx"><span>RX ${4820731+i*17}</span><span>DR. N. OYELARAN</span></div>
+      <b>${m.name.toUpperCase()} ${m.strength}</b><br>${m.sig}
+    </div>`).join('');
+
+  const byHour={};
+  MEDS.forEach(m=>m.times.forEach(t=>{ (byHour[t] ||= []).push(m); }));
+  document.getElementById('daystrip').innerHTML = Object.keys(byHour)
+    .sort((a,b)=>a-b).map(t=>{
+      const ms=byHour[t], col=COLLISIONS.find(c=>c.at==t);
+      return `<div class="dsrow">
+        <div class="dstime num">${fmt(+t)}</div>
+        <div>
+          <div class="dspills">${ms.map(m=>`<span class="pill" style="--c:${m.color}">${m.name} ${m.strength}</span>`).join('')}</div>
+          ${col?`<div class="dsflag">◆ ${col.kind==='stack'?'Same-hour stack':'Separation rule'}</div>`:''}
+        </div></div>`;
+    }).join('');
+}
+
+/* ── MCP surface ────────────────────────────────────────── */
+const TOOLS=[
+  {n:'list_regimen', d:'Return every active prescription with strengths, sig text, and resolved dose times.', a:'{ }'},
+  {n:'get_day', d:'The merged 24-hour schedule for a date — the view no single label can produce.', a:'{ date?: string }'},
+  {n:'check_overlaps', d:'Doses landing on the same hour, plus any label-printed separation rule they breach.', a:'{ date?: string }'},
+  {n:'log_taken', d:'Record an actual dose. Writes to memory and shifts the next reminder.', a:'{ med_id, at }'},
+  {n:'next_dose', d:'What is due next, when, and what it must be kept away from.', a:'{ after?: string }'},
+  {n:'refill_status', d:'Remaining quantity and projected run-out date per prescription.', a:'{ }'}
+];
+function buildTools(){
+  document.getElementById('tools').innerHTML = TOOLS.map(t=>`
+    <div class="tool"><code>${t.n}</code><p>${t.d}</p><div class="args">${t.a}</div></div>`).join('');
+}
+
+const TRANSCRIPT = [
+  ['c','# another agent asks DOSE about the day'],
+  ['k','→ tools/call'],[null,'  { "name": "check_overlaps", "arguments": { "date": "2026-08-26" } }'],
+  ['k','← result'],
+  [null,'  {'],
+  [null,'    <span class="s">"overlaps"</span>: [{'],
+  [null,'      <span class="s">"at"</span>: <span class="s">"08:00"</span>, <span class="s">"meds"</span>: [<span class="s">"metformin"</span>, <span class="s">"lisinopril"</span>],'],
+  [null,'      <span class="s">"kind"</span>: <span class="s">"same_hour_stack"</span>, <span class="s">"blocking"</span>: <span class="n">false</span>'],
+  [null,'    }, {'],
+  [null,'      <span class="s">"at"</span>: <span class="s">"06:30"</span>, <span class="s">"meds"</span>: [<span class="s">"levothyroxine"</span>],'],
+  [null,'      <span class="s">"kind"</span>: <span class="s">"separation_rule"</span>, <span class="s">"gap_required_h"</span>: <span class="n">4</span>,'],
+  [null,'      <span class="s">"gap_actual_h"</span>: <span class="n">1.5</span>, <span class="s">"blocking"</span>: <span class="n">true</span>'],
+  [null,'    }],'],
+  [null,'    <span class="s">"source"</span>: <span class="s">"label_printed_guidance"</span>,'],
+  [null,'    <span class="s">"advice"</span>: <span class="s">"scheduling_only"</span>'],
+  [null,'  }'],
+  ['c','# DOSE remembered this without being asked twice'],
+];
+
+const MEMORY=[
+  ['14 days','Evening dose is taken <b>late 4 nights in 5</b> — median 23:40, not 22:00.'],
+  ['9 days','Morning stack is <b>never split</b>. Treat 08:00 as one event, not two.'],
+  ['Learned','User skips the empty-stomach gap on weekends. <b>Surface it Saturdays.</b>'],
+  ['Written','Lisinopril has <b>1 refill left</b> → run-out 12 Oct. Pharmacy agent notified.']
+];
+function buildMemory(){
+  document.getElementById('memlist').innerHTML = MEMORY.map(([t,b])=>`
+    <div class="memrow"><div class="mt">${t}</div><div class="mb">${b}</div></div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESSIVE ENHANCEMENT + SCROLL ENGINE
+   CSS final states are the default; JS rewinds and replays.
+   ═══════════════════════════════════════════════════════════ */
+buildDial(); buildLegend(); buildBefore(); buildTools(); buildMemory();
+
+(function(){
+  const doc=document.documentElement;
+  doc.classList.remove('no-js'); doc.classList.add('js');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ?frame= lets the capture harness request a deliberately composed still
+  const frame = new URLSearchParams(location.search).get('frame');
+
+  // reveal observer
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+  }),{threshold:.16,rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('[data-rev]').forEach(n=>io.observe(n));
+
+  // dial draw-in — auto-plays so any capture lands mid-drama, never at frame zero
+  const arcs=[...document.querySelectorAll('#dial .arc')];
+  const pips=[...document.querySelectorAll('#dial .dosepip')];
+  const chords=[...document.querySelectorAll('#dial .chord')];
+  function drawDial(instant){
+    arcs.forEach((a,i)=>setTimeout(()=>a.setAttribute('opacity','1'), instant?0:160+i*105));
+    pips.forEach((p,i)=>setTimeout(()=>p.setAttribute('r','5.4'), instant?0:260+i*105));
+    setTimeout(()=>chords.forEach(c=>c.classList.add('on')), instant?0:900);
+  }
+  drawDial(reduced||!!frame);
+
+  // typed transcript — reveals line by line, settles at rest
+  const term=document.getElementById('term');
+  function typeTerm(instant){
+    term.innerHTML='';
+    TRANSCRIPT.forEach(([cls,txt],i)=>{
+      const line=document.createElement('div');
+      line.innerHTML = cls ? `<span class="${cls}">${txt}</span>` : (txt||'&nbsp;');
+      line.style.opacity=instant?1:0;
+      line.style.transition='opacity .3s var(--e)';
+      term.appendChild(line);
+      if(!instant) setTimeout(()=>line.style.opacity=1, 90*i);
+    });
+  }
+  let typed=false;
+  const tio=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting && !typed){ typed=true; typeTerm(reduced||!!frame); tio.disconnect(); }
+  }),{threshold:.25});
+  tio.observe(document.getElementById('s-agent'));
+  if(frame) { typed=true; typeTerm(true); }
+
+  // chrome: progress bar + direction-aware HUD
+  const pbar=document.getElementById('pbar'), hud=document.getElementById('hud');
+  let lastY=scrollY, dirty=true;
+  addEventListener('scroll',()=>{dirty=true},{passive:true});
+  (function loop(){
+    if(dirty){
+      dirty=false;
+      const max=doc.scrollHeight-innerHeight;
+      pbar.style.width=(max>0?Math.min(1,scrollY/max)*100:0)+'%';
+      const dy=scrollY-lastY; lastY=scrollY;
+      if(dy>4 && scrollY>innerHeight*.7) hud.classList.add('gone');
+      else if(dy<-4 || scrollY<innerHeight*.7) hud.classList.remove('gone');
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  // capture states
+  if(frame==='med'){ const n=document.querySelector('.med'); n&&n.click(); }
+})();
+</script>
+</body>
+</html>

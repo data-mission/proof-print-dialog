@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bty</title>
+<meta name="description" content="You use them every day. You've never read what's inside.">
+<style>
+/* ============================================================
+   bty landing — draft 1 · fully static · no external resources
+   Animation model: load-triggered hero, scroll-driven below.
+   ============================================================ */
+:root{
+  --paper:#f7f1e8;
+  --paper-deep:#efe6d8;
+  --ink:#27201a;
+  --ink-soft:#4a4036;
+  --muted:#8d8172;
+  --ghost:#c9bda9;          /* receded base ingredients */
+  --accent:#a84e43;          /* terracotta rose */
+  --amber:#c08544;
+  --hairline:#ddd2c0;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --ease-out:cubic-bezier(.22,.8,.26,1);
+  --ease-soft:cubic-bezier(.4,.1,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+html,body{max-width:100%;overflow-x:clip}
+body{
+  background:
+    radial-gradient(120vw 80vh at 85% -10%, #fdf9f2 0%, transparent 60%),
+    radial-gradient(90vw 70vh at -10% 30%, #f3ead9 0%, transparent 55%),
+    var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:17px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+::selection{background:#e9d7c3;color:var(--ink)}
+
+/* ---------- shared layout ---------- */
+.wrap{max-width:640px;margin-inline:auto;padding-inline:24px}
+@media(min-width:900px){.wrap{max-width:960px}}
+section,header.hero{padding-block:clamp(84px,14vh,150px)}
+.eyebrow{
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:26px;
+}
+.eyebrow b{color:var(--accent);font-weight:600}
+h2{
+  font-family:var(--serif);font-weight:500;
+  font-size:clamp(26px,4.6vw,40px);line-height:1.22;
+  letter-spacing:-.01em;max-width:22ch;
+}
+.sub{color:var(--ink-soft);margin-top:18px;max-width:52ch}
+.hairline{border:0;border-top:1px solid var(--hairline);margin:0}
+
+/* ---------- CTA ---------- */
+.cta{
+  display:inline-block;margin-top:34px;
+  padding:15px 30px;border-radius:999px;
+  background:var(--ink);color:var(--paper);
+  font-size:16px;font-weight:600;letter-spacing:.01em;
+  text-decoration:none;
+  box-shadow:0 10px 28px -12px rgba(39,32,26,.45);
+  transition:transform .35s var(--ease-out),box-shadow .35s var(--ease-out);
+}
+.cta:hover{transform:translateY(-2px);box-shadow:0 16px 34px -12px rgba(39,32,26,.5)}
+.cta:active{transform:translateY(0)}
+.cta.ghosted{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+
+/* ============================================================
+   HERO — the label decode. Load-triggered, pure CSS, ~2.4s.
+   Complete without JS. LCP is text.
+   ============================================================ */
+.hero{min-height:100svh;display:flex;align-items:center;position:relative}
+.hero .wrap{width:100%}
+.frame{
+  font-family:var(--serif);
+  font-size:clamp(28px,5.4vw,46px);
+  line-height:1.18;letter-spacing:-.012em;
+  max-width:17ch;font-weight:500;
+}
+.frame em{font-style:italic;color:var(--accent)}
+.kicker{
+  margin-top:22px;color:var(--muted);font-size:15px;letter-spacing:.02em;
+}
+
+/* the reprinted label */
+.label-card{
+  margin-top:34px;
+  background:linear-gradient(175deg,#fffdf9 0%,#faf4ea 100%);
+  border:1px solid var(--hairline);
+  border-radius:14px;
+  padding:22px 24px 20px;
+  max-width:620px;
+  box-shadow:0 24px 60px -30px rgba(90,70,45,.35), 0 2px 0 rgba(255,255,255,.7) inset;
+}
+.label-card .lc-head{
+  display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+  border-bottom:1px solid var(--hairline);padding-bottom:10px;margin-bottom:12px;
+}
+.lc-name{font-size:13px;font-weight:650;letter-spacing:.04em}
+.lc-tag{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.inci{
+  font-size:13.5px;line-height:1.75;letter-spacing:.005em;
+  color:var(--ink);max-width:60ch;
+  text-wrap:pretty;
+}
+.inci .sep{color:var(--ghost)}
+/* base ingredients recede one by one */
+.inci .b{animation:recede .7s var(--ease-soft) both;animation-delay:calc(.55s + var(--i)*.062s)}
+@keyframes recede{to{color:var(--ghost)}}
+/* the six real ones ink up together after the tide goes out */
+.inci .r{font-weight:650;animation:inkup .9s var(--ease-soft) both;animation-delay:1.75s}
+@keyframes inkup{
+  from{color:var(--ink);text-shadow:none}
+  to{color:var(--accent);text-shadow:0 0 18px rgba(168,78,67,.25)}
+}
+/* verdict block */
+.verdict{margin-top:34px;max-width:560px}
+.verdict>*{opacity:0;transform:translateY(14px);animation:rise .8s var(--ease-out) forwards}
+.v-sentence{
+  font-family:var(--serif);font-size:clamp(21px,3.6vw,29px);
+  line-height:1.35;letter-spacing:-.008em;animation-delay:1.95s !important;
+}
+.v-sentence strong{color:var(--accent);font-weight:600}
+.v-exon{
+  margin-top:14px;font-style:italic;color:var(--muted);
+  font-size:16px;animation-delay:2.25s !important;
+}
+.v-left{
+  margin-top:14px;font-size:14.5px;color:var(--ink-soft);
+  animation-delay:2.45s !important;
+}
+.v-count{
+  margin-top:22px;font-weight:700;font-size:18px;letter-spacing:.01em;
+  animation-delay:2.6s !important;
+}
+.hero .cta{opacity:0;transform:translateY(14px);animation:rise .8s var(--ease-out) forwards;animation-delay:2.8s}
+@keyframes rise{to{opacity:1;transform:none}}
+.scroll-hint{
+  position:absolute;left:50%;bottom:22px;translate:-50% 0;
+  width:1.5px;height:44px;overflow:hidden;border-radius:2px;background:rgba(39,32,26,.12);
+  opacity:0;animation:rise 1s var(--ease-out) forwards;animation-delay:3.4s;
+}
+.scroll-hint::after{
+  content:"";position:absolute;inset:0;background:var(--accent);
+  transform-origin:top;animation:drip 2.2s var(--ease-soft) infinite;
+}
+@keyframes drip{0%{transform:translateY(-100%)}55%{transform:translateY(0)}100%{transform:translateY(105%)}}
+
+/* ============================================================
+   CHORUS — no-video state (the required fallback, built as real)
+   ============================================================ */
+.chorus{display:flex;gap:26px;align-items:flex-end;margin-top:64px}
+.chorus.flip{flex-direction:row-reverse}
+.figure{flex:0 0 clamp(120px,22vw,190px);position:relative;align-self:flex-end}
+.figure svg{display:block;width:100%;height:auto;
+  -webkit-mask-image:linear-gradient(#000 74%,transparent 100%);
+  mask-image:linear-gradient(#000 74%,transparent 100%);
+}
+.figure::after{ /* contact shadow — casts the person into the page */
+  content:"";position:absolute;left:8%;right:8%;bottom:-7px;height:16px;
+  background:radial-gradient(50% 100% at 50% 50%,rgba(60,45,30,.28),transparent 70%);
+  filter:blur(5px);
+}
+.confession{flex:1;min-width:0;max-width:46ch}
+.confession p{
+  font-size:clamp(16.5px,2.4vw,19px);line-height:1.6;
+  margin-bottom:14px;color:var(--ink);
+}
+.confession p::before{content:"“";color:var(--accent);margin-right:1px}
+.confession p::after{content:"”";color:var(--accent);margin-left:1px}
+.confession .dir{
+  display:block;font-size:13px;font-style:italic;color:var(--muted);
+  margin:10px 0 14px;
+}
+.confession .dir::before,.confession .dir::after{content:""}
+.disclosure{
+  margin-top:20px;font-size:13px;color:var(--muted);
+  border-left:2px solid var(--hairline);padding-left:12px;max-width:44ch;
+}
+/* scroll-driven entrance (falls back to visible) */
+.reveal{opacity:1;transform:none}
+
+/* ============================================================
+   MOMENT 2 — the network (scroll-DRIVEN densification)
+   ============================================================ */
+.net-wrap{margin-top:44px;position:relative}
+.net{width:100%;height:auto;display:block}
+.net line{stroke:url(#thread);stroke-width:1.3;stroke-linecap:round;pathLength:1}
+.net .n{fill:#6b5f50;opacity:.55}
+.net .hub{fill:var(--accent);opacity:1}
+.net .halo{fill:none;stroke:var(--accent);opacity:.35}
+.net-cap{font-size:13px;color:var(--muted);margin-top:10px;text-align:right}
+
+/* ============================================================
+   MOMENT 3 — three steps
+   ============================================================ */
+.steps{margin-top:46px;display:grid;gap:0}
+.step{display:flex;gap:20px;padding:26px 0;border-top:1px solid var(--hairline);align-items:flex-start}
+.step:last-child{border-bottom:1px solid var(--hairline)}
+.step .num{
+  font-family:var(--serif);font-size:15px;color:var(--accent);
+  flex:0 0 34px;padding-top:3px;
+}
+.step h3{font-size:18px;font-weight:650;letter-spacing:-.005em}
+.step p{color:var(--ink-soft);font-size:15.5px;margin-top:5px;max-width:44ch}
+.effort{margin-top:26px;font-family:var(--serif);font-size:20px;color:var(--ink-soft);font-style:italic}
+
+/* ============================================================
+   MOMENT 4 — the timeline
+   ============================================================ */
+.tl{margin-top:46px;position:relative;padding-left:26px}
+.tl::before{
+  content:"";position:absolute;left:5px;top:8px;bottom:8px;width:1.5px;
+  background:linear-gradient(var(--accent),var(--hairline));
+}
+.tl-item{position:relative;padding-bottom:30px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{
+  content:"";position:absolute;left:-25px;top:7px;width:9px;height:9px;border-radius:50%;
+  background:var(--paper);border:2px solid var(--accent);
+}
+.tl-item .when{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:650}
+.tl-item .what{margin-top:4px;font-size:17px}
+.tl-item .now{color:var(--muted);font-size:13px;font-style:italic;margin-left:6px}
+
+/* ============================================================
+   MOMENT 5 — the anti-claim
+   ============================================================ */
+.anticlaim{
+  margin-top:8px;
+  font-family:var(--serif);font-weight:500;
+  font-size:clamp(24px,4.4vw,36px);line-height:1.32;letter-spacing:-.01em;
+  max-width:26ch;
+}
+.anticlaim .neg{color:var(--muted)}
+.anticlaim .pos{color:var(--ink)}
+.pricing{margin-top:30px;font-size:16px;color:var(--ink-soft)}
+.pricing b{color:var(--ink)}
+
+/* ============================================================
+   MOMENT 6 — the close
+   ============================================================ */
+.close-sec{padding-bottom:120px}
+.closing{
+  margin-top:56px;
+  font-family:var(--serif);font-style:italic;font-weight:500;
+  font-size:clamp(28px,5.4vw,46px);line-height:1.25;letter-spacing:-.012em;
+  max-width:19ch;
+}
+.closing::before{content:"“";color:var(--accent)}
+.closing::after{content:"”";color:var(--accent)}
+.platforms{margin-top:44px;color:var(--muted);font-size:15px}
+.free-line{margin-top:10px;font-size:22px;font-weight:750;letter-spacing:-.005em}
+.no-account{margin-top:8px;font-size:13.5px;color:var(--muted)}
+
+/* ============================================================
+   Scroll-driven layer — native CSS only, no libraries.
+   Everything inside degrades to final states where unsupported.
+   ============================================================ */
+@supports (animation-timeline: view()){
+  /* progress cue */
+  .progress{
+    position:fixed;top:0;left:0;right:0;height:2px;z-index:9;
+    background:linear-gradient(90deg,var(--accent),var(--amber));
+    transform-origin:left;transform:scaleX(0);
+    animation:grow linear both;animation-timeline:scroll(root);
+  }
+  @keyframes grow{to{transform:scaleX(1)}}
+
+  /* generic entrances */
+  .reveal{
+    animation:in .9s var(--ease-out) both;
+    animation-timeline:view();animation-range:entry 8% entry 46%;
+  }
+  @keyframes in{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+  .reveal.late{animation-range:entry 22% entry 62%}
+
+  /* figures settle */
+  .figure{
+    animation:settle 1s var(--ease-out) both;
+    animation-timeline:view();animation-range:entry 5% entry 48%;
+  }
+  @keyframes settle{from{opacity:0;transform:translateY(34px) scale(.985)}to{opacity:1;transform:none}}
+
+  /* confession lines, staggered */
+  .confession>*{
+    animation:in .8s var(--ease-out) both;
+    animation-timeline:view();
+    animation-range:entry calc(10% + var(--l,0)*7%) entry calc(52% + var(--l,0)*7%);
+  }
+
+  /* network threads draw with scroll — the visitor's gesture grows it */
+  .net line{
+    stroke-dasharray:1;stroke-dashoffset:1;
+    animation:draw both linear;animation-timeline:view();
+  }
+  .net line.l1{animation-range:entry 0% cover 32%}
+  .net line.l2{animation-range:entry 15% cover 58%}
+  .net line.l3{animation-range:entry 35% cover 88%}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .net .n{
+    animation:pop both var(--ease-out);animation-timeline:view();
+  }
+  .net .p1{animation-range:entry 0% cover 28%}
+  .net .p2{animation-range:entry 15% cover 52%}
+  .net .p3{animation-range:entry 35% cover 80%}
+  @keyframes pop{from{opacity:0}to{opacity:.55}}
+  .net .halo{
+    transform-origin:center;transform-box:fill-box;
+    animation:halo both var(--ease-out);animation-timeline:view();
+    animation-range:entry 0% cover 40%;
+  }
+  @keyframes halo{from{opacity:0;transform:scale(.6)}to{opacity:.35;transform:scale(1)}}
+
+  /* steps reveal in sequence */
+  .step{
+    animation:in .8s var(--ease-out) both;animation-timeline:view();
+    animation-range:entry calc(var(--s)*9%) entry calc(42% + var(--s)*9%);
+  }
+  /* timeline items */
+  .tl-item{
+    animation:in .8s var(--ease-out) both;animation-timeline:view();
+    animation-range:entry calc(var(--s)*8%) entry calc(46% + var(--s)*8%);
+  }
+}
+
+/* ============================================================
+   Reduced motion — everything final, immediately.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .inci .b{color:var(--ghost)}
+  .inci .r{color:var(--accent);font-weight:650}
+  .verdict>*,.hero .cta{opacity:1;transform:none}
+  .scroll-hint,.progress{display:none}
+  .net line{stroke-dasharray:none}
+  .net .n{opacity:.55}
+}
+
+/* desktop — two-column hero: the argument left, the label right */
+@media(min-width:900px){
+  header.hero{padding-block:64px}
+  .hero .wrap{
+    display:grid;grid-template-columns:1.02fr .98fr;
+    column-gap:64px;align-items:center;
+  }
+  .frame,.kicker,.verdict,.hero .cta{grid-column:1}
+  .hero .cta{justify-self:start}
+  .label-card{grid-column:2;grid-row:1/span 4;margin-top:0}
+  .verdict{margin-top:26px}
+  .v-left{max-width:46ch}
+}
+
+/* small screens — the hero must complete inside one viewport */
+@media(max-width:560px){
+  .chorus{gap:16px}
+  .confession p{font-size:16px}
+  section,header.hero{padding-block:72px}
+  header.hero{padding-block:56px 40px}
+  .frame{font-size:26px}
+  .kicker{margin-top:12px;font-size:14px}
+  .label-card{margin-top:20px;padding:14px 16px 12px}
+  .label-card .lc-head{padding-bottom:8px;margin-bottom:9px}
+  .inci{font-size:11.5px;line-height:1.62}
+  .verdict{margin-top:22px}
+  .v-sentence{font-size:19.5px}
+  .v-exon{margin-top:10px;font-size:14px}
+  .v-left{display:none}
+  .v-count{margin-top:14px;font-size:16.5px}
+  .hero .cta{margin-top:20px;padding:13px 26px;font-size:15px}
+  .scroll-hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"></div>
+
+<!-- shared defs: thread gradient + figure symbol -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="thread" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a84e43" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#c08544" stop-opacity=".45"/>
+    </linearGradient>
+    <!-- abstract chest-up presence; stands in for the alpha-video person -->
+    <symbol id="person" viewBox="0 0 200 240">
+      <ellipse cx="100" cy="64" rx="35" ry="42"/>
+      <path d="M84 96 L84 118 Q60 124 44 142 Q22 166 18 240 L182 240 Q178 166 156 142 Q140 124 116 118 L116 96 Z"/>
+    </symbol>
+    <linearGradient id="p1g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6b39e"/><stop offset="1" stop-color="#bf9680"/></linearGradient>
+    <linearGradient id="p2g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a97f63"/><stop offset="1" stop-color="#8d6650"/></linearGradient>
+    <linearGradient id="p3g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8ab92"/><stop offset="1" stop-color="#a98c74"/></linearGradient>
+    <linearGradient id="p4g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9a08e"/><stop offset="1" stop-color="#97806f"/></linearGradient>
+    <linearGradient id="p5g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c19a7c"/><stop offset="1" stop-color="#a37f63"/></linearGradient>
+    <linearGradient id="p6g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2b4a4"/><stop offset="1" stop-color="#a2937f"/></linearGradient>
+  </defs>
+</svg>
+
+<!-- ============================================================
+     MOMENT 1 — THE HERO. Load-triggered label decode.
+     ============================================================ -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <h1 class="frame">You use them every&nbsp;day. <em>You've never read what's&nbsp;inside.</em></h1>
+    <p class="kicker">Here's one you probably own.</p>
+
+    <div class="label-card" aria-label="The ingredient label of CeraVe Moisturizing Cream, reprinted">
+      <div class="lc-head">
+        <span class="lc-name">CeraVe Moisturizing Cream</span>
+        <span class="lc-tag">Ingredients</span>
+      </div>
+      <!-- 24 ingredients, verbatim order from the label.
+           .b = base (18, recede to grey, staggered by --i)
+           .r = the six that stay (accent ink at 1.75s) -->
+      <p class="inci" translate="no">
+        <span class="b" style="--i:0">Aqua</span><span class="sep">, </span><span class="b" style="--i:1">Glycerin</span><span class="sep">, </span><span class="b" style="--i:2">Cetearyl Alcohol</span><span class="sep">, </span><span class="b" style="--i:3">Caprylic/Capric Triglyceride</span><span class="sep">, </span><span class="b" style="--i:4">Cetyl Alcohol</span><span class="sep">, </span><span class="b" style="--i:5">Ceteareth-20</span><span class="sep">, </span><span class="b" style="--i:6">Petrolatum</span><span class="sep">, </span><span class="b" style="--i:7">Potassium Phosphate</span><span class="sep">, </span><span class="r">Ceramide NP</span><span class="sep">, </span><span class="r">Ceramide AP</span><span class="sep">, </span><span class="r">Ceramide EOP</span><span class="sep">, </span><span class="b" style="--i:8">Carbomer</span><span class="sep">, </span><span class="b" style="--i:9">Dimethicone</span><span class="sep">, </span><span class="b" style="--i:10">Behentrimonium Methosulfate</span><span class="sep">, </span><span class="b" style="--i:11">Sodium Lauroyl Lactylate</span><span class="sep">, </span><span class="r">Sodium Hyaluronate</span><span class="sep">, </span><span class="r">Cholesterol</span><span class="sep">, </span><span class="b" style="--i:12">Phenoxyethanol</span><span class="sep">, </span><span class="b" style="--i:13">Disodium EDTA</span><span class="sep">, </span><span class="b" style="--i:14">Dipotassium Phosphate</span><span class="sep">, </span><span class="b" style="--i:15">Tocopherol</span><span class="sep">, </span><span class="r">Phytosphingosine</span><span class="sep">, </span><span class="b" style="--i:16">Xanthan Gum</span><span class="sep">, </span><span class="b" style="--i:17">Ethylhexylglycerin</span>
+      </p>
+    </div>
+
+    <div class="verdict">
+      <p class="v-sentence" id="v-sentence"><span id="v-shape">CeraVe Moisturizing Cream reads as 24 ingredients. <strong>Eighteen of them are water, thickeners and preservatives.</strong></span></p>
+      <p class="v-exon">Nobody reads it. It's twenty-four words of Latin on the back of a bottle.</p>
+      <p class="v-left">What's left when the base recedes: three ceramides, cholesterol, phytosphingosine and hyaluronic acid — the ingredients it's sold on.</p>
+      <p class="v-count">That's one. You own about thirty.</p>
+    </div>
+
+    <a class="cta" href="#get">Get bty — free</a>
+  </div>
+  <div class="scroll-hint" aria-hidden="true"></div>
+</header>
+
+<!-- character 1 — mystery hook, placed as the bridge out of the hero -->
+<section aria-label="A person speaking">
+  <div class="wrap">
+    <div class="chorus">
+      <!-- CHORUS-1 video mount: stacked-alpha AV1, ~10s, muted, plays on viewport entry.
+           Replace the placeholder <svg> below; captions stay as DOM text. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p1g)" opacity=".92"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <p style="--l:0">There's — there's four cleansers under my sink. Three of them I used maybe twice.</p>
+        <p style="--l:1">I couldn't tell you what's wrong with them. They just weren't it.</p>
+        <span class="dir" style="--l:2">(breath)</span>
+        <p style="--l:3">I'd like to actually know. Not guess.</p>
+        <!-- tap-to-source mount: each line resolves to its research-panel quote -->
+        <p class="disclosure" style="--l:4">Performed by synthetic presenters. The words are real — tap any line to see where they came from.</p>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOMENT 2 — THE SCALE. Scroll-driven network.
+     ============================================================ -->
+<section aria-label="The scale">
+  <div class="wrap">
+    <p class="eyebrow reveal"><b>02</b> — The scale</p>
+    <h2 class="reveal">Your 10th product creates 9 new connections. Each scan makes every previous scan more valuable.</h2>
+    <p class="sub reveal late">One label was a surprise. Thirty labels are a map.</p>
+
+    <div class="net-wrap">
+      <svg class="net" viewBox="0 0 640 460" role="img" aria-label="A network of products connecting as more labels are read">
+        <!-- layer 1 — the first connections -->
+        <line class="l1" x1="320" y1="215" x2="215" y2="150"/>
+        <line class="l1" x1="320" y1="215" x2="400" y2="150"/>
+        <line class="l1" x1="320" y1="215" x2="455" y2="235"/>
+        <line class="l1" x1="320" y1="215" x2="255" y2="300"/>
+        <line class="l1" x1="320" y1="215" x2="215" y2="235"/>
+        <!-- layer 2 — the shelf grows -->
+        <line class="l2" x1="215" y1="150" x2="120" y2="90"/>
+        <line class="l2" x1="215" y1="150" x2="230" y2="60"/>
+        <line class="l2" x1="215" y1="150" x2="110" y2="150"/>
+        <line class="l2" x1="400" y1="150" x2="360" y2="50"/>
+        <line class="l2" x1="400" y1="150" x2="480" y2="80"/>
+        <line class="l2" x1="400" y1="150" x2="330" y2="120"/>
+        <line class="l2" x1="455" y1="235" x2="560" y2="150"/>
+        <line class="l2" x1="455" y1="235" x2="585" y2="260"/>
+        <line class="l2" x1="255" y1="300" x2="180" y2="400"/>
+        <line class="l2" x1="255" y1="300" x2="95" y2="330"/>
+        <!-- layer 3 — the map densifies -->
+        <line class="l3" x1="330" y1="120" x2="230" y2="60"/>
+        <line class="l3" x1="330" y1="120" x2="360" y2="50"/>
+        <line class="l3" x1="110" y1="150" x2="70" y2="220"/>
+        <line class="l3" x1="70" y1="220" x2="95" y2="330"/>
+        <line class="l3" x1="95" y1="330" x2="180" y2="400"/>
+        <line class="l3" x1="180" y1="400" x2="300" y2="425"/>
+        <line class="l3" x1="300" y1="425" x2="395" y2="330"/>
+        <line class="l3" x1="395" y1="330" x2="455" y2="235"/>
+        <line class="l3" x1="395" y1="330" x2="430" y2="410"/>
+        <line class="l3" x1="430" y1="410" x2="540" y2="350"/>
+        <line class="l3" x1="540" y1="350" x2="585" y2="260"/>
+        <line class="l3" x1="560" y1="150" x2="480" y2="80"/>
+        <line class="l3" x1="215" y1="235" x2="255" y2="300"/>
+        <line class="l3" x1="215" y1="235" x2="110" y2="150"/>
+        <line class="l3" x1="255" y1="300" x2="395" y2="330"/>
+        <line class="l3" x1="120" y1="90" x2="230" y2="60"/>
+        <!-- nodes -->
+        <circle class="halo" cx="320" cy="215" r="14" stroke-width="1.2"/>
+        <circle class="hub" cx="320" cy="215" r="6.5"/>
+        <circle class="n p1" cx="215" cy="150" r="4"/>
+        <circle class="n p1" cx="400" cy="150" r="4"/>
+        <circle class="n p1" cx="455" cy="235" r="4"/>
+        <circle class="n p1" cx="255" cy="300" r="4"/>
+        <circle class="n p1" cx="215" cy="235" r="3.4"/>
+        <circle class="n p2" cx="120" cy="90" r="3.4"/>
+        <circle class="n p2" cx="230" cy="60" r="3.4"/>
+        <circle class="n p2" cx="360" cy="50" r="3.4"/>
+        <circle class="n p2" cx="480" cy="80" r="3.4"/>
+        <circle class="n p2" cx="560" cy="150" r="3.4"/>
+        <circle class="n p2" cx="585" cy="260" r="3.4"/>
+        <circle class="n p2" cx="110" cy="150" r="3.4"/>
+        <circle class="n p2" cx="180" cy="400" r="3.4"/>
+        <circle class="n p2" cx="95" cy="330" r="3.4"/>
+        <circle class="n p2" cx="330" cy="120" r="3.4"/>
+        <circle class="n p3" cx="70" cy="220" r="3"/>
+        <circle class="n p3" cx="300" cy="425" r="3"/>
+        <circle class="n p3" cx="395" cy="330" r="3"/>
+        <circle class="n p3" cx="430" cy="410" r="3"/>
+        <circle class="n p3" cx="540" cy="350" r="3"/>
+      </svg>
+      <p class="net-cap">The one you just read, meeting the rest of your shelf.</p>
+    </div>
+
+    <div class="chorus flip">
+      <!-- CHORUS-2 video mount: stacked-alpha AV1, ~10s, muted, plays on viewport entry. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p2g)" opacity=".92" style="transform:scaleX(-1)"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <p style="--l:0">I added it up once. Four hundred dollars. <span class="dir" style="display:inline;margin:0">(beat)</span> Not on stuff I hated. On stuff I just… stopped reaching for.</p>
+        <p style="--l:1">And I couldn't tell you which one it'd be. Not standing in the shop. Not holding it.</p>
+        <span class="dir" style="--l:2">(exhale, breaks eyeline down)</span>
+      </blockquote>
+    </div>
+
+    <a class="cta ghosted reveal late" href="#get">See all your connections — free</a>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOMENT 3 — THE HOW. Sequential reveals.
+     ============================================================ -->
+<section aria-label="How it works">
+  <div class="wrap">
+    <p class="eyebrow reveal"><b>03</b> — The how</p>
+    <h2 class="reveal">One photo. Five seconds.</h2>
+
+    <div class="steps">
+      <div class="step" style="--s:0">
+        <span class="num">1</span>
+        <div><h3>Photograph the back label</h3><p>The one in tiny type. That's the whole ask.</p></div>
+      </div>
+      <div class="step" style="--s:1">
+        <span class="num">2</span>
+        <div><h3>See what's inside — in words you understand</h3><p>Every name decoded from Latin into plain language.</p></div>
+      </div>
+      <div class="step" style="--s:2">
+        <span class="num">3</span>
+        <div><h3>Watch your products connect</h3><p>Threads appear between the things you own.</p></div>
+      </div>
+    </div>
+
+    <div class="chorus">
+      <!-- CHORUS-3 video mount: stacked-alpha AV1, ~5s; real-hands phone insert composited.
+           The only direct-to-camera address on the page. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p3g)" opacity=".92" style="transform:scale(.94)"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <span class="dir" style="--l:0">(lifts phone toward a bottle, holds, lowers it)</span>
+        <p style="--l:1">…That's it?</p>
+      </blockquote>
+    </div>
+
+    <a class="cta ghosted reveal late" href="#get">Start scanning — free</a>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOMENT 4 — THE TIMELINE. Honesty as trust. No CTA.
+     ============================================================ -->
+<section aria-label="The timeline">
+  <div class="wrap">
+    <p class="eyebrow reveal"><b>04</b> — The timeline</p>
+    <h2 class="reveal">It gets smarter the more you scan.</h2>
+
+    <div class="tl">
+      <div class="tl-item" style="--s:0">
+        <p class="when">Scan 1</p>
+        <p class="what">34 ingredients decoded to plain language <span class="now">instant</span></p>
+      </div>
+      <div class="tl-item" style="--s:1">
+        <p class="when">Scan 2</p>
+        <p class="what">Cross-references appear <span class="now">instant</span></p>
+      </div>
+      <div class="tl-item" style="--s:2">
+        <p class="when">Week 4</p>
+        <p class="what">Patterns emerge — what you finish vs. what you toss</p>
+      </div>
+      <div class="tl-item" style="--s:3">
+        <p class="when">Over time</p>
+        <p class="what">Verdicts arrive — know what to skip before you buy</p>
+      </div>
+    </div>
+
+    <div class="chorus flip">
+      <!-- CHORUS-4 video mount: stacked-alpha AV1, ~14s, muted, plays on viewport entry. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p4g)" opacity=".92"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <p style="--l:0">I want to walk into a shop and just — know. That's it. That's the whole thing.</p>
+        <p style="--l:1">I tried one of those before. It gave everything a number out of ten. <span class="dir" style="display:inline;margin:0">(beat)</span> Ten out of ten for <em>who?</em></p>
+        <p style="--l:2">I don't want a grade. I want something that remembers what I've already tried.</p>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOMENT 5 — THE TRUST. The anti-claim.
+     ============================================================ -->
+<section aria-label="What we don't do">
+  <div class="wrap">
+    <p class="eyebrow reveal"><b>05</b> — The trust</p>
+    <p class="anticlaim reveal">
+      <span class="neg">We don't score your products. We don't tell you what's “clean.”</span>
+      <span class="pos"> We show you what's in them — and over time, learn what works for you.</span>
+      <span class="neg"> Not overnight. Over scans.</span>
+    </p>
+
+    <div class="chorus">
+      <!-- CHORUS-5 video mount: stacked-alpha AV1, ~16s — the longest, uncut. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p5g)" opacity=".92"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <p style="--l:0">Two years on T. My face changed. Everything I owned stopped working — all of it, at once.</p>
+        <p style="--l:1">And I asked. I asked <em>everyone.</em> <span class="dir" style="display:inline;margin:0">(beat)</span> Everybody had an opinion. Nobody had a reason.</p>
+        <span class="dir" style="--l:2">(breath)</span>
+        <p style="--l:3">I didn't need someone to tell me what's clean. I needed someone to tell me what changed.</p>
+      </blockquote>
+    </div>
+
+    <p class="pricing reveal late"><b>Free to start — 5 scans/day.</b> $19.99/year for unlimited.</p>
+    <a class="cta reveal late" href="#get">Get bty — free</a>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOMENT 6 — THE CLOSE.
+     ============================================================ -->
+<section class="close-sec" id="get" aria-label="The close">
+  <div class="wrap">
+    <div class="chorus">
+      <!-- CHORUS-6 video mount: stacked-alpha AV1, ~8s, muted, plays on viewport entry. -->
+      <div class="figure" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="url(#p6g)" opacity=".92" style="transform:scaleX(-1) scale(.97)"><use href="#person"/></svg>
+      </div>
+      <blockquote class="confession">
+        <p style="--l:0">I've been buying this stuff since I was fifteen. Forty-three years.</p>
+        <span class="dir" style="--l:1">(beat)</span>
+        <p style="--l:2">Nobody ever told me there was anything to know.</p>
+      </blockquote>
+    </div>
+
+    <p class="closing reveal">I finally know what actually works for my skin — and why.</p>
+
+    <!-- store badges mount: replace with real badges once the app is live. No fabricated badges before. -->
+    <p class="platforms reveal late">Coming to iOS and Android.</p>
+    <p class="free-line reveal late">Free.</p>
+    <p class="no-account reveal late">No account needed to start scanning.</p>
+  </div>
+</section>
+
+<script>
+/* Share links (§6/§8.7): getbty.com/s/?p=NAME&n=24&m=18
+   Renders ONLY the fixed sentence shape from sanitized params.
+   Pure progressive enhancement — the page is complete without this. */
+(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(!q.has('p')||!q.has('n')||!q.has('m'))return;
+    var p=(q.get('p')||'').replace(/[^\w '+&.\-]/g,'').slice(0,60).trim();
+    var n=parseInt(q.get('n'),10), m=parseInt(q.get('m'),10);
+    if(!p||!Number.isInteger(n)||!Number.isInteger(m)||n<1||n>99||m<0||m>n)return;
+    var el=document.getElementById('v-shape');
+    el.textContent='';
+    el.appendChild(document.createTextNode(p+' reads as '+n+' ingredients. '));
+    var s=document.createElement('strong');
+    s.textContent=m+' of them are water, thickeners and preservatives.';
+    el.appendChild(s);
+    var card=document.querySelector('.label-card');
+    if(card)card.style.display='none'; /* the reprint is CeraVe-specific */
+    var kick=document.querySelector('.kicker');
+    if(kick)kick.textContent='A friend sent you this one.';
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

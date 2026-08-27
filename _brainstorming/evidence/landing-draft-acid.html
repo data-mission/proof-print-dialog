@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>bty</title>
+<meta name="description" content="You use them every day. You've never read what's inside.">
+<style>
+/* ================================================================
+   bty landing — draft 2 "ACID LAB" · fully static · no external
+   resources. Deep ground, acid lime, hot magenta specimens.
+   Animation model: JS scroll-driven (rAF + IntersectionObserver).
+   Final states are the DEFAULT — JS rewinds them, scroll replays
+   them. No JS / reduced motion = complete decoded page.
+   ================================================================ */
+:root{
+  --void:#0b100c;           /* green-biased near-black ground */
+  --void-2:#0e1510;
+  --panel:#101812;
+  --line:#1e2b20;
+  --txt:#e8f3e4;
+  --txt-dim:#8fa08b;
+  --ghost:#3d4a3e;          /* receded base ingredients */
+  --acid:#c9ff2e;           /* electric chartreuse */
+  --acid-soft:rgba(201,255,46,.16);
+  --hot:#ff3d8e;            /* specimen magenta */
+  --hot-soft:rgba(255,61,142,.14);
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --disp:ui-sans-serif,-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --eo:cubic-bezier(.19,.84,.27,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:clip}
+html{background:var(--void)}
+body{
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(201,255,46,.05), transparent 60%),
+    radial-gradient(900px 600px at -10% 30%, rgba(255,61,142,.04), transparent 55%),
+    var(--void);
+  color:var(--txt);
+  font-family:var(--disp);
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--acid);color:var(--void)}
+
+/* grain */
+.grain{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:.5;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");}
+
+/* fixed chrome */
+.hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;
+  padding:calc(10px + env(safe-area-inset-top)) 18px 10px;pointer-events:none;
+  transition:opacity .35s var(--eo),transform .35s var(--eo)}
+.hud::before{content:"";position:absolute;inset:-1px 0 -28px;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(11,16,12,.94) 30%,rgba(11,16,12,.55) 62%,transparent)}
+.hud.gone{opacity:0;transform:translateY(-10px)}
+.hud .mark{font:800 1.05rem/1 var(--disp);letter-spacing:-.03em;color:var(--acid)}
+.hud .sys{font:500 .62rem/1 var(--mono);letter-spacing:.14em;color:var(--txt-dim);text-transform:uppercase}
+.pbar{position:fixed;top:0;left:0;height:2px;width:0%;background:var(--acid);z-index:11;
+  box-shadow:0 0 12px rgba(201,255,46,.7)}
+
+/* type utilities */
+.eyebrow{font:600 .66rem/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--acid)}
+.eyebrow em{color:var(--txt-dim);font-style:normal}
+.mono-note{font:500 .72rem/1.6 var(--mono);color:var(--txt-dim);letter-spacing:.04em}
+h1,h2{font-family:var(--disp);font-weight:800;letter-spacing:-.035em;text-wrap:balance;line-height:.98}
+.disp-xl{font-size:clamp(2.5rem,11.5vw,7.5rem)}
+.disp-lg{font-size:clamp(2rem,8.5vw,5.2rem)}
+.disp-md{font-size:clamp(1.5rem,6vw,3.4rem)}
+.acid{color:var(--acid)}
+.hot{color:var(--hot)}
+
+/* buttons */
+.cta{display:inline-block;font:700 1rem/1 var(--disp);letter-spacing:-.01em;color:var(--void);
+  background:var(--acid);border:0;border-radius:999px;padding:1.05rem 1.9rem;text-decoration:none;
+  box-shadow:0 0 0 1px rgba(201,255,46,.4),0 0 34px rgba(201,255,46,.28);cursor:pointer}
+.cta:focus-visible{outline:2px solid var(--txt);outline-offset:3px}
+.cta.ghosted{background:transparent;color:var(--acid);box-shadow:inset 0 0 0 1.5px var(--acid)}
+.free-tag{font:600 .68rem/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--txt-dim);margin-top:.7rem}
+
+/* layout */
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+section{position:relative}
+.flow{padding:clamp(5rem,14vh,9rem) 0}
+.pin-outer{position:relative}
+.pin{position:sticky;top:0;height:100vh;height:100svh;display:flex;flex-direction:column;overflow:clip}
+
+/* ============ HERO — THE DECODE ============ */
+#heroWrap{height:300vh}
+.hero-inner{flex:1;display:flex;flex-direction:column;justify-content:flex-start;
+  padding:calc(52px + env(safe-area-inset-top)) 20px calc(16px + env(safe-area-inset-bottom));
+  max-width:1060px;margin:0 auto;width:100%}
+.hero-head{transition:none;will-change:transform,opacity}
+.hero-head h1{margin:.4rem 0 .8rem}
+.hero-head h1 .l2{color:var(--acid)}
+.hero-kicker{font:500 .8rem/1.5 var(--mono);color:var(--txt-dim);letter-spacing:.05em;margin-bottom:1rem}
+.spec-bar{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);padding:.55rem 2px;margin:.8rem 0 1rem}
+.spec-bar .nm{font:600 .68rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--txt)}
+.spec-bar .ct{font:700 .8rem/1 var(--mono);letter-spacing:.1em;color:var(--acid)}
+.spec-bar .ct b{color:var(--hot)}
+/* the specimen wall */
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start}
+.tok{font:500 clamp(.6rem,2.55vw,.82rem)/1 var(--mono);text-transform:uppercase;letter-spacing:.03em;
+  padding:.5em .62em;border:1px solid var(--line);border-radius:4px;color:var(--txt);
+  background:rgba(255,255,255,.015);transition:color .45s var(--eo),border-color .45s var(--eo),
+  background .45s var(--eo),box-shadow .45s var(--eo),opacity .45s var(--eo)}
+.tok.dim{color:var(--ghost);border-color:#16201a;background:transparent;opacity:.55}
+.tok.lit{color:var(--hot);border-color:rgba(255,61,142,.55);background:var(--hot-soft);
+  box-shadow:0 0 14px rgba(255,61,142,.25);opacity:1}
+/* verdict panel */
+.verdict{margin-top:auto;padding-top:1rem;transition:opacity .6s var(--eo),transform .6s var(--eo)}
+.verdict.pending{opacity:0;transform:translateY(30px);pointer-events:none}
+.verdict .v1{font-size:clamp(1.25rem,4.9vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.08;text-wrap:balance}
+.verdict .v1 b{color:var(--acid)}
+.verdict .ex{font:400 italic .86rem/1.5 var(--disp);color:var(--txt-dim);margin:.7rem 0 .45rem}
+.verdict .thirty{font:700 1rem/1.3 var(--disp);letter-spacing:-.01em;margin-bottom:1rem}
+.scroll-cue{position:absolute;right:18px;bottom:calc(14px + env(safe-area-inset-bottom));
+  font:600 .6rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--acid);
+  writing-mode:vertical-rl;opacity:.85;transition:opacity .4s}
+.scroll-cue::after{content:"";display:block;width:1px;height:34px;background:linear-gradient(var(--acid),transparent);margin:10px auto 0}
+
+/* ============ CHORUS FIGURES — scanline synth silhouettes ============ */
+.person{position:relative;width:min(210px,52vw);aspect-ratio:5/6;margin:0 auto}
+.person .fig{position:absolute;inset:0 0 18px 0;display:block;
+  filter:drop-shadow(0 0 1.5px rgba(201,255,46,.6)) drop-shadow(0 0 22px rgba(201,255,46,.14)) drop-shadow(0 20px 26px rgba(0,0,0,.6));
+  -webkit-mask-image:linear-gradient(180deg,#000 66%,transparent 98%);
+  mask-image:linear-gradient(180deg,#000 66%,transparent 98%)}
+.person .head,.person .torso{position:absolute;display:block;background:linear-gradient(178deg,#1a241b,#0c110d 78%)}
+.person .head{top:0;left:50%;transform:translateX(-50%);width:44%;aspect-ratio:.86;border-radius:50% 50% 44% 44%}
+.person .torso{bottom:0;left:2%;right:2%;height:64%;border-radius:48% 48% 10px 10px / 70% 70% 10px 10px}
+.person .head::after,.person .torso::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.55) 3px 4px)}
+.person .head::before{content:"";position:absolute;top:10%;left:16%;width:34%;height:44%;
+  background:radial-gradient(closest-side,rgba(201,255,46,.16),transparent);border-radius:50%}
+.person .tag{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);
+  font:600 .58rem/1 var(--mono);letter-spacing:.22em;color:var(--acid);text-transform:uppercase;white-space:nowrap}
+.person.hotline .fig{filter:drop-shadow(0 0 1.5px rgba(255,61,142,.65)) drop-shadow(0 0 24px rgba(255,61,142,.18)) drop-shadow(0 20px 26px rgba(0,0,0,.6))}
+.person.hotline .head::before{background:radial-gradient(closest-side,rgba(255,61,142,.18),transparent)}
+.person.hotline .tag{color:var(--hot)}
+
+/* confession blocks */
+.confess{display:grid;gap:1.6rem;align-items:end;margin-top:3rem}
+@media(min-width:760px){.confess{grid-template-columns:1.2fr .8fr;gap:3rem}}
+.lines p{font-size:clamp(1.05rem,3.6vw,1.5rem);font-weight:600;letter-spacing:-.015em;line-height:1.35;
+  color:var(--txt);margin-bottom:1rem;text-wrap:pretty}
+.lines p::before{content:"“";color:var(--acid);margin-right:.1em}
+.lines p::after{content:"”";color:var(--acid);margin-left:.05em}
+.lines p em{font-style:italic;color:var(--hot)}
+.disclose{border:1px dashed rgba(201,255,46,.4);border-radius:8px;padding:.9rem 1rem;margin-top:1.4rem}
+.disclose p{font:500 .78rem/1.6 var(--mono);color:var(--txt-dim)}
+.disclose b{color:var(--acid);font-weight:600}
+
+/* reveal (IO) — final visible by default; JS rewinds */
+.rev-init{opacity:0;transform:translateY(30px);transition:opacity .8s var(--eo),transform .8s var(--eo)}
+.rev-init.in{opacity:1;transform:none}
+
+/* ============ MOMENT 2 — NETWORK ============ */
+#netWrap{height:260vh}
+.net-inner{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1rem;
+  padding:calc(56px + env(safe-area-inset-top)) 20px 30px;max-width:1060px;margin:0 auto;width:100%}
+.net-svg{width:100%;max-width:760px;margin:0 auto;display:block}
+.net-svg line{stroke:rgba(201,255,46,.34);stroke-width:1}
+.net-svg .hub{fill:var(--hot)}
+.net-svg circle{fill:#9ab08f}
+.net-svg .nd{transition:opacity .5s var(--eo)}
+.net-svg .nd.hid{opacity:0}
+.net-cap{text-align:center}
+
+/* ============ MOMENT 3 — STEPS ============ */
+.steps{display:grid;gap:14px;margin-top:2.4rem;counter-reset:st}
+@media(min-width:760px){.steps{grid-template-columns:1fr 1fr 1fr}}
+.step{border:1px solid var(--line);border-radius:10px;padding:1.3rem 1.1rem;background:var(--panel)}
+.step .n{font:700 .68rem/1 var(--mono);color:var(--acid);letter-spacing:.2em}
+.step h3{font-size:1.1rem;font-weight:700;letter-spacing:-.02em;margin:.6rem 0 .3rem}
+.step p{font-size:.85rem;color:var(--txt-dim)}
+
+/* ============ MOMENT 4 — TIMELINE ============ */
+.tl{position:relative;margin-top:2.6rem;padding-left:26px}
+.tl .track{position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line);overflow:hidden}
+.tl .track i{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--acid);
+  transform-origin:top;transform:scaleY(var(--tp,1));box-shadow:0 0 10px rgba(201,255,46,.6)}
+.mk{position:relative;padding:.9rem 0}
+.mk::before{content:"";position:absolute;left:-24px;top:1.35rem;width:10px;height:10px;border-radius:50%;
+  background:var(--acid);box-shadow:0 0 12px rgba(201,255,46,.55);transition:background .4s,box-shadow .4s}
+.mk h3{font:700 .72rem/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--acid);margin-bottom:.3rem}
+.mk p{font-size:clamp(1rem,3.4vw,1.3rem);font-weight:600;letter-spacing:-.015em}
+.mk p i{font-style:normal;color:var(--txt-dim);font-weight:500;font-size:.85em}
+.mk.off::before{background:var(--ghost);box-shadow:none}
+.mk.off h3{color:var(--txt-dim)}
+.mk{transition:opacity .5s var(--eo)}
+.mk.off{opacity:.4}
+
+/* ============ MOMENT 5 — ANTI-CLAIM ============ */
+.anti{border:1px solid rgba(201,255,46,.35);border-radius:14px;background:linear-gradient(180deg,rgba(201,255,46,.05),transparent 70%);
+  padding:clamp(1.4rem,5vw,2.6rem);margin-top:2.2rem}
+.anti p.big{font-size:clamp(1.35rem,5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.15;text-wrap:balance}
+.anti p.big b{color:var(--acid)}
+.price{font:600 .8rem/1.6 var(--mono);color:var(--txt-dim);letter-spacing:.05em;margin-top:1.2rem}
+
+/* ============ MOMENT 6 — CLOSE ============ */
+.close-line{margin-top:2.2rem}
+.close-line .w{display:inline-block;transition:opacity .5s var(--eo),transform .5s var(--eo)}
+.close-line .w.off{opacity:.12;transform:translateY(.25em)}
+.close-meta{display:flex;flex-wrap:wrap;gap:1rem 2rem;align-items:baseline;margin-top:2.6rem}
+.free-big{font-size:clamp(3rem,16vw,8rem);font-weight:800;letter-spacing:-.04em;color:var(--acid);line-height:.9}
+.close-meta .mono-note{max-width:210px}
+footer-spacer{display:block;height:26vh}
+
+/* slide-in section titles (JS-driven --sx) */
+.slide{transform:translateX(calc(var(--sx,0) * 1px))}
+
+/* share mode (?p=&n=&m=) — static verdict, no CeraVe decode ----- */
+html.share #heroWrap{height:auto}
+html.share #heroWrap .pin{position:relative;height:auto;min-height:100svh;justify-content:center}
+html.share .spec-bar,html.share #chips,html.share .scroll-cue{display:none}
+html.share .verdict{margin-top:2.4rem}
+html.share .hero-head{opacity:1!important;transform:none!important}
+
+/* motion guards ------------------------------------------------- */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .scroll-cue{display:none}
+}
+.no-js .scroll-cue{display:none}
+@media(min-width:900px){
+  .hero-head h1{max-width:16ch}
+  .verdict{display:grid;grid-template-columns:1.4fr .8fr;gap:2rem;align-items:end}
+  .verdict .cta-slot{text-align:right}
+}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div class="pbar" id="pbar" aria-hidden="true"></div>
+<div class="hud">
+  <span class="mark">bty</span>
+  <span class="sys">ingredient&nbsp;decode&nbsp;·&nbsp;v0.2</span>
+</div>
+
+<!-- ================= MOMENT 1 — THE DECODE (pinned) ================= -->
+<div id="heroWrap" class="pin-outer" data-scene data-pin>
+  <section class="pin" aria-label="The decode">
+    <div class="hero-inner">
+      <div class="hero-head" id="heroHead">
+        <p class="eyebrow"><em>01 —</em> the decode</p>
+        <h1 class="disp-lg">You use them every day. <span class="l2">You've never read what's inside.</span></h1>
+        <p class="hero-kicker">Here's one you probably own.</p>
+      </div>
+      <div class="spec-bar">
+        <span class="nm">Specimen — CeraVe Moisturizing Cream</span>
+        <span class="ct"><b id="inked">06</b>/24 inked</span>
+      </div>
+      <div class="chips" id="chips" aria-label="Ingredient list, label order">
+        <span class="tok dim">Aqua</span>
+        <span class="tok dim">Glycerin</span>
+        <span class="tok dim">Cetearyl Alcohol</span>
+        <span class="tok dim">Caprylic/Capric Triglyceride</span>
+        <span class="tok dim">Cetyl Alcohol</span>
+        <span class="tok dim">Ceteareth-20</span>
+        <span class="tok dim">Petrolatum</span>
+        <span class="tok dim">Potassium Phosphate</span>
+        <span class="tok lit">Ceramide NP</span>
+        <span class="tok lit">Ceramide AP</span>
+        <span class="tok lit">Ceramide EOP</span>
+        <span class="tok dim">Carbomer</span>
+        <span class="tok dim">Dimethicone</span>
+        <span class="tok dim">Behentrimonium Methosulfate</span>
+        <span class="tok dim">Sodium Lauroyl Lactylate</span>
+        <span class="tok lit">Sodium Hyaluronate</span>
+        <span class="tok lit">Cholesterol</span>
+        <span class="tok dim">Phenoxyethanol</span>
+        <span class="tok dim">Disodium EDTA</span>
+        <span class="tok dim">Dipotassium Phosphate</span>
+        <span class="tok dim">Tocopherol</span>
+        <span class="tok lit">Phytosphingosine</span>
+        <span class="tok dim">Xanthan Gum</span>
+        <span class="tok dim">Ethylhexylglycerin</span>
+      </div>
+      <div class="verdict" id="verdict">
+        <div>
+          <p class="v1">CeraVe Moisturizing Cream reads as 24 ingredients. <b>Eighteen of them are water, thickeners and preservatives.</b></p>
+          <p class="ex">Nobody reads it. It's twenty-four words of Latin on the back of a bottle.</p>
+          <p class="thirty">That's one. You own about thirty.</p>
+        </div>
+        <div class="cta-slot">
+          <a class="cta" href="#get">Get bty — free</a>
+          <p class="free-tag">free to start</p>
+        </div>
+      </div>
+      <span class="scroll-cue" id="cue">scroll to decode</span>
+    </div>
+  </section>
+</div>
+
+<!-- Moment 1 continues — chorus 1 -->
+<section class="flow" aria-label="Confession one">
+  <div class="wrap">
+    <div class="confess">
+      <div class="lines rev">
+        <!-- CHORUS-1 video mount: stacked-alpha AV1, chest-up, contact shadow.
+             Stage directions (production only): false start on line 1; breath before the wish. -->
+        <p>There's — there's four cleansers under my sink. Three of them I used maybe twice.</p>
+        <p>I couldn't tell you what's wrong with them. They just weren't it.</p>
+        <p>I'd like to actually know. Not guess.</p>
+        <div class="disclose"><p><b>Performed by synthetic presenters.</b> The words are real — tap any line to see where they came from.</p></div>
+      </div>
+      <div>
+        <div class="person rev" data-px="34" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑01</span></div>
+      </div>
+    </div>
+    <p style="margin-top:2.6rem" class="rev"><a class="cta ghosted" href="#get">Do this for everything you own — free</a></p>
+  </div>
+</section>
+
+<!-- ================= MOMENT 2 — THE SCALE (pinned network) ================= -->
+<div id="netWrap" class="pin-outer" data-scene data-pin>
+  <section class="pin" aria-label="The scale">
+    <div class="net-inner">
+      <p class="eyebrow slide" data-sx="-40"><em>02 —</em> the scale</p>
+      <h2 class="disp-md slide" data-sx="40">Your 10th product creates 9 new connections. <span class="acid">Each scan makes every previous scan more valuable.</span></h2>
+      <svg class="net-svg" id="net" viewBox="0 0 390 300" role="img" aria-label="A network of products connecting">
+        <g id="edges">
+          <line x1="195" y1="150" x2="60"  y2="60"/><line x1="195" y1="150" x2="140" y2="40"/>
+          <line x1="195" y1="150" x2="230" y2="55"/><line x1="195" y1="150" x2="320" y2="70"/>
+          <line x1="195" y1="150" x2="345" y2="150"/><line x1="195" y1="150" x2="310" y2="235"/>
+          <line x1="195" y1="150" x2="220" y2="262"/><line x1="195" y1="150" x2="120" y2="250"/>
+          <line x1="195" y1="150" x2="50"  y2="190"/><line x1="195" y1="150" x2="90"  y2="120"/>
+          <line x1="195" y1="150" x2="280" y2="120"/><line x1="195" y1="150" x2="160" y2="200"/>
+          <line x1="195" y1="150" x2="255" y2="195"/><line x1="60" y1="60"  x2="140" y2="40"/>
+          <line x1="140" y1="40" x2="230" y2="55"/><line x1="230" y1="55" x2="320" y2="70"/>
+          <line x1="320" y1="70" x2="345" y2="150"/><line x1="345" y1="150" x2="310" y2="235"/>
+          <line x1="310" y1="235" x2="220" y2="262"/><line x1="220" y1="262" x2="120" y2="250"/>
+          <line x1="120" y1="250" x2="50" y2="190"/><line x1="50" y1="190" x2="90" y2="120"/>
+          <line x1="90" y1="120" x2="60" y2="60"/><line x1="280" y1="120" x2="320" y2="70"/>
+          <line x1="160" y1="200" x2="120" y2="250"/><line x1="255" y1="195" x2="310" y2="235"/>
+        </g>
+        <g id="nodes">
+          <circle class="nd" cx="60"  cy="60"  r="4"/><circle class="nd" cx="140" cy="40"  r="4"/>
+          <circle class="nd" cx="230" cy="55"  r="4"/><circle class="nd" cx="320" cy="70"  r="4"/>
+          <circle class="nd" cx="345" cy="150" r="4"/><circle class="nd" cx="310" cy="235" r="4"/>
+          <circle class="nd" cx="220" cy="262" r="4"/><circle class="nd" cx="120" cy="250" r="4"/>
+          <circle class="nd" cx="50"  cy="190" r="4"/><circle class="nd" cx="90"  cy="120" r="4"/>
+          <circle class="nd" cx="280" cy="120" r="4"/><circle class="nd" cx="160" cy="200" r="4"/>
+          <circle class="nd" cx="255" cy="195" r="4"/>
+          <circle class="hub" cx="195" cy="150" r="6"/>
+        </g>
+      </svg>
+      <p class="mono-note net-cap">The one you just read, meeting the rest of your shelf.</p>
+    </div>
+  </section>
+</div>
+
+<!-- Moment 2 continues — chorus 2 + CTA -->
+<section class="flow" aria-label="Confession two">
+  <div class="wrap">
+    <div class="confess">
+      <div class="lines rev">
+        <!-- CHORUS-2 video mount: stacked-alpha AV1.
+             Stage directions (production only): beat after "dollars"; exhale, breaks eyeline down at end. No spoken wish. -->
+        <p>I added it up once. Four hundred dollars. Not on stuff I hated. On stuff I just… stopped reaching for.</p>
+        <p>And I couldn't tell you which one it'd be. Not standing in the shop. Not holding it.</p>
+      </div>
+      <div>
+        <div class="person rev" data-px="30" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑02</span></div>
+      </div>
+    </div>
+    <p style="margin-top:2.6rem" class="rev"><a class="cta ghosted" href="#get">See all your connections — free</a></p>
+  </div>
+</section>
+
+<!-- ================= MOMENT 3 — THE HOW ================= -->
+<section class="flow" aria-label="How it works" data-scene>
+  <div class="wrap">
+    <p class="eyebrow rev"><em>03 —</em> the how</p>
+    <h2 class="disp-md rev">One photo. <span class="acid">Five seconds.</span></h2>
+    <div class="steps">
+      <div class="step rev"><span class="n">STEP 1</span><h3>Photograph the back label</h3><p>Point at the small print. That's the whole move.</p></div>
+      <div class="step rev"><span class="n">STEP 2</span><h3>See what's inside — in words you understand</h3><p>Every INCI name, decoded to plain language.</p></div>
+      <div class="step rev"><span class="n">STEP 3</span><h3>Watch your products connect</h3><p>Cross-reference threads appear across your shelf.</p></div>
+    </div>
+    <div class="confess">
+      <div class="lines rev">
+        <!-- CHORUS-3 video mount: stacked-alpha AV1 + separately shot real hand insert.
+             Stage directions (production only): lifts phone toward a bottle, holds, lowers it; to camera. -->
+        <p>…That's it?</p>
+      </div>
+      <div>
+        <div class="person rev" data-px="26" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑03</span></div>
+      </div>
+    </div>
+    <p style="margin-top:2.4rem" class="rev"><a class="cta ghosted" href="#get">Start scanning — free</a></p>
+  </div>
+</section>
+
+<!-- ================= MOMENT 4 — THE TIMELINE ================= -->
+<section class="flow" aria-label="The timeline" data-scene id="tlScene">
+  <div class="wrap">
+    <p class="eyebrow rev"><em>04 —</em> the timeline</p>
+    <h2 class="disp-md rev">It gets smarter <span class="acid">the more you scan.</span></h2>
+    <div class="tl" id="tl">
+      <div class="track"><i></i></div>
+      <div class="mk"><h3>Scan 1</h3><p>34 ingredients decoded to plain language <i>— instant</i></p></div>
+      <div class="mk"><h3>Scan 2</h3><p>Cross-references appear <i>— instant</i></p></div>
+      <div class="mk"><h3>Week 4</h3><p>Patterns emerge — what you finish vs. what you toss</p></div>
+      <div class="mk"><h3>Over time</h3><p>Verdicts arrive — know what to skip before you buy</p></div>
+    </div>
+    <div class="confess">
+      <div class="lines rev">
+        <!-- CHORUS-4 video mount: stacked-alpha AV1, long-form model.
+             Stage directions (production only): beat before "Ten out of ten for who". -->
+        <p>I want to walk into a shop and just — know. That's it. That's the whole thing.</p>
+        <p>I tried one of those before. It gave everything a number out of ten. Ten out of ten for <em>who?</em></p>
+        <p>I don't want a grade. I want something that remembers what I've already tried.</p>
+      </div>
+      <div>
+        <div class="person rev" data-px="30" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑04</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MOMENT 5 — THE TRUST ================= -->
+<section class="flow" aria-label="The trust" data-scene>
+  <div class="wrap">
+    <p class="eyebrow rev"><em>05 —</em> the trust</p>
+    <div class="anti rev">
+      <p class="big">We don't score your products. We don't tell you what's 'clean.' <b>We show you what's in them</b> — and over time, learn what works for you. Not overnight. Over scans.</p>
+      <p class="price">Free to start — 5 scans/day. $19.99/year for unlimited.</p>
+    </div>
+    <div class="confess">
+      <div class="lines rev">
+        <!-- CHORUS-5 video mount: stacked-alpha AV1, long-form model. Do not trim.
+             Stage directions (production only): beat after "everyone"; breath before final line. -->
+        <p>Two years on T. My face changed. Everything I owned stopped working — all of it, at once.</p>
+        <p>And I asked. I asked <em>everyone.</em> Everybody had an opinion. Nobody had a reason.</p>
+        <p>I didn't need someone to tell me what's clean. I needed someone to tell me what changed.</p>
+      </div>
+      <div>
+        <div class="person hotline rev" data-px="30" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑05</span></div>
+      </div>
+    </div>
+    <p style="margin-top:2.4rem" class="rev"><a class="cta" href="#get">Get bty — free</a></p>
+  </div>
+</section>
+
+<!-- ================= MOMENT 6 — THE CLOSE ================= -->
+<section class="flow" aria-label="The close" data-scene id="closeScene">
+  <div class="wrap" id="get">
+    <p class="eyebrow rev"><em>06 —</em> the close</p>
+    <div class="confess" style="margin-top:1.6rem">
+      <div class="lines rev">
+        <!-- CHORUS-6 video mount: stacked-alpha AV1.
+             Stage directions (production only): beat between lines; eyeline drifts toward camera on the last line. -->
+        <p>I've been buying this stuff since I was fifteen. Forty-three years.</p>
+        <p>Nobody ever told me there was anything to know.</p>
+      </div>
+      <div>
+        <div class="person rev" data-px="24" aria-hidden="true"><span class="fig"><i class="head"></i><i class="torso"></i></span><span class="tag">synth‑06</span></div>
+      </div>
+    </div>
+    <h2 class="disp-xl close-line" id="closeLine" aria-label="I finally know what actually works for my skin — and why."><span class="w">I</span> <span class="w">finally</span> <span class="w">know</span> <span class="w">what</span> <span class="w acid">actually</span> <span class="w acid">works</span> <span class="w">for</span> <span class="w">my</span> <span class="w">skin</span> <span class="w">—</span> <span class="w hot">and</span> <span class="w hot">why.</span></h2>
+    <div class="close-meta">
+      <div>
+        <p class="free-big">Free.</p>
+        <p class="mono-note" style="margin-top:.6rem">Coming to iOS and Android</p>
+      </div>
+      <p class="mono-note">No account needed to start scanning.</p>
+      <a class="cta rev" href="#get" style="align-self:center">Get bty — free</a>
+    </div>
+  </div>
+</section>
+<footer-spacer></footer-spacer>
+
+<script>
+/* Share links (§6/§8.7): getbty.com/s/?p=NAME&n=24&m=18
+   Renders ONLY the fixed sentence shape from sanitized params;
+   collapses the pinned CeraVe decode to a static verdict.
+   Pure progressive enhancement — the page is complete without this. */
+(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(!q.has('p')||!q.has('n')||!q.has('m'))return;
+    var p=(q.get('p')||'').replace(/[^\w '+&.\-]/g,'').slice(0,60).trim();
+    var n=parseInt(q.get('n'),10),m=parseInt(q.get('m'),10);
+    if(!p||!Number.isInteger(n)||!Number.isInteger(m)||n<1||n>99||m<0||m>n)return;
+    window.__SHARE__={p:p,n:n,m:m};
+    document.documentElement.classList.add('share');
+    var v1=document.querySelector('#verdict .v1');
+    v1.textContent='';
+    v1.appendChild(document.createTextNode(p+' reads as '+n+' ingredients. '));
+    var b=document.createElement('b');
+    b.textContent=m+' of them are water, thickeners and preservatives.';
+    v1.appendChild(b);
+    var ex=document.querySelector('#verdict .ex');
+    if(ex)ex.textContent="Nobody reads it. It's "+n+" words of Latin on the back of a bottle.";
+    var kick=document.querySelector('.hero-kicker');
+    if(kick)kick.textContent='A friend sent you this one.';
+  }catch(e){}
+})();
+
+/* Progressive enhancement: defaults above are FINAL states.
+   JS rewinds them and replays via scroll. No JS / reduced motion → final page. */
+(function(){
+  var doc=document.documentElement;
+  doc.classList.remove('no-js');doc.classList.add('js');
+  var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){doc.classList.add('reduced');return;}
+
+  var vh=function(){return window.innerHeight;};
+  var $=function(s,r){return (r||document).querySelector(s);};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+
+  /* ---- rewind to start states (skip hero rewind in share mode) ---- */
+  var SHARE=!!window.__SHARE__;
+  var toks=$$('#chips .tok');
+  var order=[];                       // label-order state
+  toks.forEach(function(t,i){
+    var real=t.classList.contains('lit');
+    order.push({el:t,real:real,on:true});
+    if(!SHARE){t.classList.remove('dim');t.classList.remove('lit');}
+  });
+  var verdict=$('#verdict');if(!SHARE)verdict.classList.add('pending');
+  var inked=$('#inked');if(!SHARE)inked.textContent='24';
+  $$('.rev').forEach(function(el){el.classList.add('rev-init');});
+  $$('#net .nd').forEach(function(n){n.classList.add('hid');});
+  $$('#net line').forEach(function(l){
+    l.setAttribute('pathLength','1');
+    l.style.strokeDasharray='1';l.style.strokeDashoffset='1';
+    l.style.transition='stroke-dashoffset .01s linear';
+  });
+  $$('#tl .mk').forEach(function(m){m.classList.add('off');});
+  $('#tl .track i').style.setProperty('--tp','0');
+  $$('#closeLine .w').forEach(function(w){w.classList.add('off');});
+
+  /* ---- IntersectionObserver reveals ---- */
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+  },{threshold:.18});
+  $$('.rev-init').forEach(function(el){io.observe(el);});
+
+  /* ---- scenes ---- */
+  var heroWrap=$('#heroWrap'),netWrap=$('#netWrap'),tlScene=$('#tlScene'),closeScene=$('#closeScene');
+  var heroHead=$('#heroHead'),cue=$('#cue'),pbar=$('#pbar');
+  var hud=$('.hud'),hudLastY=scrollY;
+  var netLines=$$('#net line'),netNodes=$$('#net .nd');
+  var mks=$$('#tl .mk'),track=$('#tl .track i'),words=$$('#closeLine .w');
+  var pxEls=$$('[data-px]');
+  var slides=$$('.slide');
+
+  function pinP(el){var r=el.getBoundingClientRect();var d=r.height-vh();return d<=0?1:Math.min(1,Math.max(0,-r.top/d));}
+  function flowP(el){var r=el.getBoundingClientRect();return Math.min(1,Math.max(0,(vh()-r.top)/(vh()+r.height)));}
+
+  /* intro auto-decode: first slice plays with zero interaction */
+  var t0=performance.now(),INTRO_MS=1700,INTRO_TARGET=.16;
+  function introP(now){var k=Math.min(1,(now-((t0)+500))/INTRO_MS);if(k<0)k=0;
+    return INTRO_TARGET*(1-Math.pow(1-k,3));}
+
+  var docH=0;
+  function measure(){docH=doc.scrollHeight-vh();}
+  measure();addEventListener('resize',measure);
+
+  var dirty=true;
+  addEventListener('scroll',function(){dirty=true;},{passive:true});
+
+  function frame(now){
+    var introDone=now>t0+500+INTRO_MS;
+    if(dirty||!introDone){
+      dirty=false;
+      /* progress hairline */
+      pbar.style.width=(Math.min(1,Math.max(0,scrollY/docH))*100)+'%';
+
+      /* HUD — hide on scroll-down past the hero, return on scroll-up */
+      var dy=scrollY-hudLastY;hudLastY=scrollY;
+      if(dy>0&&scrollY>vh()*.6)hud.classList.add('gone');
+      else if(dy<0||scrollY<=vh()*.6)hud.classList.remove('gone');
+
+      /* HERO — sweep gets the intro boost; headline/cue react to scroll only.
+         Share mode: hero is a static verdict — skip the decode entirely. */
+      if(!SHARE){
+      var hpScroll=pinP(heroWrap);
+      var hp=Math.max(hpScroll,introP(now));
+      var sweep=Math.min(1,Math.max(0,(hp-.04)/.72));
+      var k=Math.floor(sweep*24.999);
+      var dimmed=0;
+      for(var i=0;i<24;i++){
+        var o=order[i],passed=i<k;
+        if(o.real){o.el.classList.toggle('lit',passed);}
+        else{o.el.classList.toggle('dim',passed);if(passed)dimmed++;}
+      }
+      inked.textContent=String(24-dimmed).padStart(2,'0');
+      heroHead.style.opacity=Math.max(0,1-hpScroll*2.4);
+      heroHead.style.transform='translateY('+(hpScroll*-46)+'px)';
+      verdict.classList.toggle('pending',hp<.84);
+      cue.style.opacity=hpScroll>.06?'0':'.85';
+      }
+
+      /* NETWORK */
+      var np=pinP(netWrap);
+      var draw=Math.min(1,Math.max(0,(np-.05)/.75));
+      netLines.forEach(function(l,idx){
+        var th=idx/netLines.length;
+        var seg=Math.min(1,Math.max(0,(draw-th)*6));
+        l.style.strokeDashoffset=String(1-seg);
+      });
+      netNodes.forEach(function(n,idx){
+        n.classList.toggle('hid',draw<(idx+1)/(netNodes.length+2));
+      });
+
+      /* TIMELINE */
+      var tp=Math.min(1,Math.max(0,(flowP(tlScene)-.18)/.5));
+      track.style.setProperty('--tp',String(tp));
+      mks.forEach(function(m,idx){m.classList.toggle('off',tp<(idx+.6)/mks.length);});
+
+      /* CLOSE words */
+      var cp=Math.min(1,Math.max(0,(flowP(closeScene)-.18)/.32));
+      words.forEach(function(w,idx){w.classList.toggle('off',cp<(idx+1)/(words.length+1));});
+
+      /* parallax + slides */
+      pxEls.forEach(function(el){
+        var r=el.getBoundingClientRect();
+        var d=((r.top+r.height/2)-vh()/2)/vh();
+        el.style.transform='translate3d(0,'+(d*-parseFloat(el.getAttribute('data-px'))).toFixed(1)+'px,0)';
+      });
+      slides.forEach(function(el){
+        var r=el.getBoundingClientRect();
+        var d=Math.min(1,Math.max(0,(vh()-r.top)/(vh()*.9)));
+        el.style.setProperty('--sx',String(((1-d)*parseFloat(el.getAttribute('data-sx'))).toFixed(1)));
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
