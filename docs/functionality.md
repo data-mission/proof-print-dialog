@@ -122,7 +122,56 @@ The difference is not styled to look dramatic; it *is* the coverage number, draw
 
 ---
 
-## 6. Drop and restore, per sheet or in bulk
+## 6. The Agent view: the MCP surface, live in the app itself
+
+A fourth toolbar button — "Agent" — flips the same screen to show what an AI agent sees when it proofs this exact document over MCP. This is not a canned screenshot glued into the UI: the transcript is generated at click-time from the live `PAGES` array, so if the loaded document changes, the transcript changes with it.
+
+**Claim, verified this run:** regenerated from live data on every view, not a static string.
+
+```
+claude → proof · stdio                            ● connected
+
+# an agent proofs the file before anything moves
+→ tools/call
+  { "name": "waste_report", "arguments": { "doc": "Q3_Operating_Review_FINAL_v4.docx" } }
+← result
+  {
+    "pages_total": 15, "pages_printing": 10,
+    "flagged": [
+      { "page":  4, "ink_pct": 0.11, "reason": "orphaned_footer" },
+      { "page":  6, "ink_pct": 0.05, "reason": "break_artefact" },
+      { "page":  9, "ink_pct": 0.1,  "reason": "intentionally_blank" },
+      { "page": 11, "ink_pct": 0.06, "reason": "orphaned_footer" },
+      { "page": 13, "ink_pct": 0.01, "reason": "orphaned_footer" }
+    ],
+    "threshold_pct": 2,
+    "method": "glyph_run_geometry"
+  }
+# 5 sheets never left the tray
+```
+
+| Tool | Args | What it does |
+|---|---|---|
+| `proof` | `{ doc?: string }` | Paginate and measure a document; every sheet's line count, ink coverage, waste verdict. |
+| `waste_report` | `{ doc?: string }` | Only the flagged sheets, with the reason and the coverage that condemned each. |
+| `drop_pages` | `{ pages: number[] }` | Remove sheets and reflow; returns the job that will actually print. |
+| `ink_cost` | `{ drop?: number[] }` | Sheets, mean coverage, and cost, as-is vs. as-proposed. |
+
+---
+
+## 7. "Since 1995": the honest before, live in the app
+
+A fifth toolbar state — "Since 1995" — renders the format being reinvented, honestly, using the app's own real data: the preview pane shows sheet 1 of the actual loaded document, scaled to the real ~104px width a 1995-era print dialog would have given you. It is not a stand-in graphic — the real `thumb()` function draws real sheet 1, scaled to 104px.
+
+> "Page 1 of 15, at about a hundred pixels. Five of those sheets are almost blank and there is no way to know it from here." — generated from the live page count and live waste count, not typed once and left to go stale.
+
+- **4** controls, essentially unchanged since 1995
+- **~104px** the preview you're asked to judge from
+- **0** of them tell you what's actually on the page
+
+---
+
+## 8. Drop and restore, per sheet or in bulk
 
 The verdict isn't the app's alone to make — you can override it in either direction.
 
@@ -133,7 +182,7 @@ The verdict isn't the app's alone to make — you can override it in either dire
 
 ---
 
-## 7. A real Print button — window.print(), not a mockup
+## 9. A real Print button — window.print(), not a mockup
 
 "Print" calls the browser's actual print pipeline against the same document PROOF measured, not a canned screenshot of one.
 
@@ -149,7 +198,7 @@ Clicking **Print** calls `window.print()` against a hidden `#printroot` that mir
 
 ---
 
-## 8. Proof your own file — the same pipeline, not a second demo mode
+## 10. Proof your own file — the same pipeline, not a second demo mode
 
 The rail has a real drop zone: drag in an `.html`, `.txt`, or `.md` file, or click it to pick one.
 
@@ -159,7 +208,7 @@ The rail has a real drop zone: drag in an `.html`, `.txt`, or `.md` file, or cli
 
 ---
 
-## 9. The MCP server — proofing a document without a human in the loop
+## 11. The MCP server — proofing a document without a human in the loop
 
 The web page is one surface on PROOF. A real [MCP](https://modelcontextprotocol.io) server in `proof/mcp/` exposes the same measurement as four callable tools over stdio, so an agent can proof a job before a sheet moves.
 
@@ -190,20 +239,21 @@ $ cd proof/mcp && npm install && node smoke_test.mjs
 tools: proof, waste_report, drop_pages, ink_cost   ✓ 4/4
 
 === waste_report ===
-flagged: [4,7,9,11,12]  reasons match  ✓
+doc: Q3_Operating_Review_FINAL_v4.docx
+flagged: [4,6,9,11,13]  reasons match index.html  ✓
 
-=== drop_pages([4,7,9,11,12]) ===
-pages_printing: [1,2,3,5,6,8,10]  sheets_saved: 5  ✓
+=== drop_pages([4,6,9,11,13]) ===
+pages_printing: [1,2,3,5,7,8,10,12,14,15]  sheets_saved: 5  ✓
 
 === ink_cost ===
-sheets_saved: 5   cost_saved_usd: 0.0545
+mean_ink_pct: 2.97 ("2.9%" in the UI)   sheets_saved: 5   cost_saved_usd: 0.0603 ("$0.06" in the UI)
 ```
 
-**Stated plainly:** the server's own `document.js` models a self-contained 12-page reference document (its own page numbers, its own disclosed cost formula) rather than dynamically re-running the web UI's live measurement over whatever document is currently loaded there. The tool surface, the reasoning categories, and the "state the method, don't hide it" discipline all carry over faithfully — the exact page numbers an agent gets back today are the server's own bundled document, not a live proxy into `index.html`'s current one. Full detail in `proof/mcp/README.md`.
+**Stated plainly:** `proof/mcp/document.js` mirrors `index.html`'s live document exactly — same filename, same 15 pages, same 5 waste pages and reasons, same cost constants. The one thing disclosed rather than hidden: the ink percentages in `document.js` are captured values mirrored from a real browser measurement, not recomputed by the server itself — there is no server-side equivalent of `Range.getClientRects()`, since that API only exists in a real layout engine. The server reports this honestly as `"method": "measured_in_browser_layout"` rather than pretending to re-derive the numbers independently. Full detail in `proof/mcp/README.md`.
 
 ---
 
-## 10. Verified against the running app, not just read
+## 12. Verified against the running app, not just read
 
 `_brainstorming/verify.mjs` drives the real page in a real headless browser and asserts every claim on this page. It exits non-zero on failure, so it can run in CI.
 
@@ -231,6 +281,39 @@ sheets_saved: 5   cost_saved_usd: 0.0545
 | no console errors | clean run |
 
 **20 / 20 assertions passing — run live, this session.**
+
+### Two more harnesses, because reading the DOM isn't the same as printing
+
+`_brainstorming/verify-print.mjs` renders the app to a real PDF — the exact bytes a printer would receive — and counts the actual page objects in the output, both with every sheet restored and with the waste sheets dropped:
+
+| Assertion | Result |
+|---|---|
+| full job renders every sheet | 15 PDF pages vs 15 sheets |
+| reduced job renders fewer sheets | 10 vs 15 |
+| reduced count = total minus dropped | 10 = 15 − 5 |
+| exactly the dropped sheets disappear | 5 removed, 5 dropped |
+
+**4 / 4 assertions passing — real PDF output verified, this session.**
+
+This harness caught a real bug, not a hypothetical one: an earlier print stylesheet used a trailing `page-break-after` that emitted one extra blank page at the end of every PDF — a tool built to eliminate blank pages was, briefly, printing one. The fix was verified the only way that means anything for a print feature: by rendering an actual PDF and counting real pages, not by reading the CSS and deciding it looked right.
+
+### The drift catcher
+
+`_brainstorming/verify-consistency.mjs` exists because the numbers in this project have drifted between the app, the deck, this page, the MCP server, and the README more than once while it was being built. It reads the live app as the single source of truth, then greps every other shipped artifact for stale figures from earlier revisions.
+
+```
+LIVE APP (source of truth)
+  15 pages → 10 print · waste [4,6,9,11,13] · threshold 2% · mean 2.9%
+
+  PASS  ../proof/deck.html
+  PASS  ../proof/docs.html
+  PASS  ../proof/process.html
+  PASS  ../proof/mcp/document.js
+  PASS  ../proof/mcp/README.md
+  PASS  ../README.md
+
+all artifacts agree with the live app
+```
 
 ---
 

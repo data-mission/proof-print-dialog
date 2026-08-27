@@ -43,6 +43,13 @@ const STALE = [
   [/\$0\.42\b/,              '$0.42 — old cost figure'],
   [/\b3\.1\s*%/,             '3.1% — old mean ink'],
   [/pages?\s*4[,/]\s*7[,/]\s*9/, 'old waste page list (4,7,9,...)'],
+  /* Blind spot found the hard way: docs.html embeds a hand-authored
+     Markdown mirror as a JS string. It drifted to the old waste list
+     while every prose mention on the same page was correct. Match the
+     sequence in ANY separator style so embedded strings are covered. */
+  [/\b4\b[^0-9a-z]{1,4}\b7\b[^0-9a-z]{1,4}\b9\b[^0-9a-z]{1,4}\b11\b/i,
+    'stale waste sequence 4,7,9,11 — current is 4,6,9,11,13'],
+  [/\b12\b\s*(pages?|sheets?)\s*(→|->|&rarr;)/i, 'old 12-page verdict'],
 ];
 
 let issues = 0;
