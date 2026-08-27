@@ -47,7 +47,7 @@ console.log(JSON.stringify(s, null, 2));
 t('DOC flagged as PDF', s.isPDF === true, String(s.isPDF));
 t('filename matches dropped file', s.filename === 'Q3_Operating_Review_FINAL_v4.pdf', s.filename);
 t('20 pages extracted', s.pages === 20, `${s.pages} pages`);
-t('all pages measured (real text layer)', s.unmeasured === 0, `${s.unmeasured} unmeasured`);
+t('all pages resolved to a verdict (text or pixel-verified blank)', s.unmeasured === 0, `${s.unmeasured} unmeasured`);
 t('method badge honestly labels pdf text geometry', /pdf text geometry/.test(s.method), s.method);
 t('method dot is live', s.methodLive === true, String(s.methodLive));
 t('page 1 (title/cover) is NOT flagged waste despite likely low ink', !s.reasons.some(r=>r[0]===1), JSON.stringify(s.reasons.find(r=>r[0]===1)||'not flagged - good'));

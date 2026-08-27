@@ -1184,6 +1184,22 @@ fileIn.addEventListener('change', e => { const f = e.target.files?.[0]; if(f) re
    so xrayHTML(), render(), mountDetail() and thumb() all run completely
    unmodified for a PDF page, because they only ever look at that shape,
    never at how it was produced. */
+/* A page with no extractable text is blank only if the render agrees:
+   scan the rasterized canvas for any pixel darker than near-white. Used
+   ONLY to resolve the textless case (blank filler page vs. scanned
+   image) — never as a second ink-coverage model for pages that do have
+   text, so this does not compete with GLYPH_DENSITY for the headline
+   number. */
+function canvasIsBlank(canvas){
+  const ctx = canvas.getContext('2d', { willReadFrequently:true });
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for(let i = 0; i < data.length; i += 4){
+    const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+    if(lum < 250) return false;
+  }
+  return true;
+}
+
 async function loadPdf(file){
   document.getElementById('fname').textContent = file.name;
   document.getElementById('docTitle').textContent = file.name.replace(/\.pdf$/i,'');
@@ -1270,17 +1286,30 @@ async function loadPdf(file){
     canvas.height = Math.max(1, Math.round(rvp.height));
     await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: rvp }).promise;
 
-    const measured = runs > 0;
+    // A page with zero text items is ambiguous on its own: it could be a
+    // genuinely blank filler sheet (a real, common thing — this very
+    // sample PDF has five, produced by its own page-break CSS), or it
+    // could be a scanned image with no text layer at all, which DOES
+    // carry content we simply cannot measure. Text extraction alone
+    // cannot tell those apart — but the render we just produced can: a
+    // pixel scan of the SAME canvas resolves the ambiguity honestly
+    // instead of guessing. Blank -> a verified 0%. Not blank -> left
+    // unmeasured, per the no-fabricated-values rule.
+    let ink2 = ink, runs2 = runs;
+    let confirmedBlank = false;
+    if(runs2 === 0 && canvasIsBlank(canvas)){ confirmedBlank = true; }
+
+    const measured = runs2 > 0 || confirmedBlank;
     const p = {
       n: idx, isPDF: true, dropped: false,
-      // no extractable text (e.g. a scanned page) -> ink stays null,
-      // never a fabricated 0%.
-      ink: measured ? +((ink / pageArea) * 100).toFixed(2) : null,
-      runs, map, itemCount: runs, hasHeading,
+      ink: runs2 > 0 ? +((ink2 / pageArea) * 100).toFixed(2) : (confirmedBlank ? 0 : null),
+      runs: runs2, map, itemCount: runs2, hasHeading,
       rawText: strs.join(' ').replace(/\s+/g,' ').trim(),
       dataUrl: canvas.toDataURL('image/png'),
       measured,
-      methodLabel: measured ? 'measured · pdf text geometry' : 'unmeasured · no extractable text'
+      methodLabel: runs2 > 0 ? 'measured · pdf text geometry'
+                 : confirmedBlank ? 'measured · blank page (pixel-verified)'
+                 : 'unmeasured · no extractable text'
     };
     p.waste = isWastePDF(p);
     p.reason = classifyPDF(p);
