@@ -1,19 +1,28 @@
 # PROOF
 
-![A hand holding a printed page up to the window — almost entirely blank, one stray line of text near the middle. Below it, a printer tray full of sheets.](assets/hero.png)
+**Inspect a print job before sending it to the printer.**
 
-> You already printed it. That's when you find out.
+PROOF is a hackathon prototype with a static browser interface and a local MCP server. The browser lays out HTML, text, and Markdown documents, estimates ink coverage from rendered text geometry, and flags low-content pages for review.
 
-**PROOF is the print dialog, reinvented.** Instead of a stamp-sized thumbnail and a leap of
-faith, it shows you every page of the job at readable size, measures how much ink each page
-actually costs from the document's real, rendered layout, and flags the sheets that are waste
-before you burn paper on them — then it prints what you meant, not what your last edit left
-behind.
+[Try the browser interface](https://data-mission.github.io/proof-print-dialog/) · [Read the MCP setup](proof/mcp/README.md) · [Inspect the implementation](proof/index.html)
 
-Built for the Cursor Calgary hackathon (Aug 2026), whose brief was to take a boring, everyday
-application format and make it dramatically better — visually, functionally, or both. The
-print dialog hasn't meaningfully changed since 1995. This is what it looks like if someone
-finally touched it.
+![PROOF interface showing a print job and page-level inspection](shots/03-detail.png)
+
+## Run the browser interface
+
+Clone or download this repository, then open `proof/index.html` in a browser. Keep `proof/sample-document.js` beside it. The browser interface needs no build step.
+
+To inspect the local MCP server:
+
+```bash
+cd proof/mcp
+npm install
+node smoke_test.mjs
+```
+
+**Current limits:** ink coverage is an estimate derived from page geometry, not a calibrated printer-consumption measurement. The MCP server uses a captured document model; it does not yet measure arbitrary incoming documents independently. The browser interface and MCP server have different input capabilities.
+
+Built for the Cursor Calgary hackathon, August 2026. Maintained by [Vlad Ryzhkov](https://github.com/data-mission).
 
 ---
 
